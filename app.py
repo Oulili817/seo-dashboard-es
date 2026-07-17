@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
+import calendar
 import plotly.graph_objects as go
 
 # ==========================================
@@ -10,78 +11,32 @@ st.set_page_config(page_title="ES 业务全局看板", page_icon="✨", layout="
 
 st.markdown("""
 <style>
-    /* 引入顶级英文字体 Poppins 和 FontAwesome 图标库 */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
     @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
     
-    /* 强制全局应用新字体与深紫文字色 */
-    html, body, [class*="css"] {
-        font-family: 'Poppins', 'Segoe UI', sans-serif !important;
-        color: #2D235C !important;
-    }
-    
-    /* 页面底层背景色：稍深的蓝灰，衬托白色卡片 */
-    [data-testid="stAppViewContainer"], .stApp {
-        background-color: #F1F5F9 !important;
-    }
-    [data-testid="stHeader"] {
-        background-color: transparent !important;
-    }
+    html, body, [class*="css"] { font-family: 'Poppins', 'Segoe UI', sans-serif !important; color: #2D235C !important; }
+    [data-testid="stAppViewContainer"], .stApp { background-color: #F1F5F9 !important; }
+    [data-testid="stHeader"] { background-color: transparent !important; }
 
-    /* ✨ 核心卡片：超大圆角，增加实体边框与双层投影，显著区分模块 ✨ */
     .soft-card {
-        background-color: #ffffff;
-        border: 1px solid #E2E8F0;
-        border-radius: 28px; 
-        padding: 30px;
+        background-color: #ffffff; border: 1px solid #E2E8F0; border-radius: 28px; padding: 30px;
         box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
-        margin-bottom: 24px;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 24px; transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    .soft-card:hover {
-        transform: translateY(-4px); 
-        box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.12), 0 10px 15px -5px rgba(15, 23, 42, 0.08); 
-    }
+    .soft-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.12), 0 10px 15px -5px rgba(15, 23, 42, 0.08); }
     
-    /* 顶部致敬原图的欢迎横幅 */
     .welcome-banner {
-        background: linear-gradient(135deg, #FFB000 0%, #FF9000 100%);
-        border-radius: 28px;
-        padding: 32px 40px;
-        color: white;
-        margin-bottom: 30px;
-        box-shadow: 0 16px 32px -10px rgba(255, 160, 0, 0.4);
-        position: relative;
-        overflow: hidden;
+        background: linear-gradient(135deg, #FFB000 0%, #FF9000 100%); border-radius: 28px; padding: 32px 40px; color: white; margin-bottom: 30px; box-shadow: 0 16px 32px -10px rgba(255, 160, 0, 0.4); position: relative; overflow: hidden;
     }
     .welcome-banner h1 { color: white !important; font-size: 36px; font-weight: 800; margin: 0 0 8px 0; }
     .welcome-banner p { color: rgba(255,255,255,0.9) !important; font-size: 16px; margin: 0; }
     
-    /* 圆滑加粗的发光进度条 */
-    .progress-track {
-        background-color: #F0F1F6;
-        border-radius: 999px;
-        height: 18px; 
-        width: 100%;
-        position: relative;
-    }
-    .progress-fill-red { 
-        background: linear-gradient(90deg, #FF8491 0%, #FF6475 100%); 
-        height: 100%; border-radius: 999px; transition: width 0.8s ease; 
-        box-shadow: 0 6px 16px -4px rgba(255, 100, 117, 0.6); 
-    }
-    .progress-fill-blue { 
-        background: linear-gradient(90deg, #6BE1F0 0%, #42D2E6 100%); 
-        height: 100%; border-radius: 999px; transition: width 0.8s ease; 
-        box-shadow: 0 6px 16px -4px rgba(66, 210, 230, 0.6); 
-    }
+    .progress-track { background-color: #F0F1F6; border-radius: 999px; height: 18px; width: 100%; position: relative; }
+    .progress-fill-red { background: linear-gradient(90deg, #FF8491 0%, #FF6475 100%); height: 100%; border-radius: 999px; transition: width 0.8s ease; box-shadow: 0 6px 16px -4px rgba(255, 100, 117, 0.6); }
+    .progress-fill-blue { background: linear-gradient(90deg, #6BE1F0 0%, #42D2E6 100%); height: 100%; border-radius: 999px; transition: width 0.8s ease; box-shadow: 0 6px 16px -4px rgba(66, 210, 230, 0.6); }
     .rocket-icon { position: absolute; right: -12px; top: -6px; font-size: 22px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15)); }
     
-    /* 图标圆角方块设计 */
-    .icon-square {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 48px; height: 48px; border-radius: 16px; margin-right: 16px; font-size: 22px;
-    }
+    .icon-square { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 16px; margin-right: 16px; font-size: 22px; }
     .icon-small { width: 36px; height: 36px; border-radius: 12px; margin-right: 12px; font-size: 16px; }
     
     .bg-red { background-color: #FFF0F2; color: #FF6475; }
@@ -92,22 +47,12 @@ st.markdown("""
     
     .flex-center { display: flex; align-items: center; }
 
-    /* 按钮：圆润饱满 */
-    div[data-testid="stButton"] button {
-        background-color: #ffffff; border: 2px solid #F0F1F6; border-radius: 20px; 
-        color: #2D235C; font-weight: 600; padding: 6px 24px;
-        box-shadow: 0 4px 10px rgba(45, 35, 92, 0.03); transition: all 0.3s ease;
-    }
-    div[data-testid="stButton"] button:hover {
-        transform: scale(1.03); background-color: #2D235C; border-color: #2D235C; 
-        box-shadow: 0 10px 20px -6px rgba(45, 35, 92, 0.4); color: #ffffff;
-    }
+    div[data-testid="stButton"] button { background-color: #ffffff; border: 2px solid #F0F1F6; border-radius: 20px; color: #2D235C; font-weight: 600; padding: 6px 24px; box-shadow: 0 4px 10px rgba(45, 35, 92, 0.03); transition: all 0.3s ease; }
+    div[data-testid="stButton"] button:hover { transform: scale(1.03); background-color: #2D235C; border-color: #2D235C; box-shadow: 0 10px 20px -6px rgba(45, 35, 92, 0.4); color: #ffffff; }
     
-    /* 文字颜色分级 */
     .text-main { color: #2D235C !important; }
     .text-muted { color: #8E8CA7 !important; }
     
-    /* 漏斗与内部卡片 */
     .funnel-item { flex: 1; border-right: 2px solid #F0F1F6; padding-left: 20px; }
     .funnel-item:last-child { border-right: none; }
     .funnel-title { color: #8E8CA7; font-size: 13px; font-weight:500; margin: 0 0 8px 0; display: flex; align-items: center; }
@@ -126,14 +71,16 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. 数据读取与清洗
+# 1. 数据读取与 ✨ 强制击穿缓存的读取机制 ✨
 # ==========================================
 sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4KTuYQtC6xsRIwgWLDK9aJUhqmKDmUg4XmMxbsKadyj4QSRM9GNvDjyYz7z8vzKj8nohA7a8ukiLz/pub?gid=0&single=true&output=csv"
 
 @st.cache_data(ttl=600)
 def load_and_clean_data(url):
-    df_raw = pd.read_csv(url, header=None)
-    # 严格按照要求：提取 Google 表格 44 - 62 行的数据 (Python 索引为 43 到 61，43为表头)
+    # ✨ 核心修复：在 URL 结尾加上随机时间戳，强制突破 Google 表格的 CDN 缓存！
+    bust_url = f"{url}&_t={int(datetime.now().timestamp())}"
+    
+    df_raw = pd.read_csv(bust_url, header=None)
     df_es = df_raw.iloc[44:62].copy()
     raw_columns = list(df_raw.iloc[43])
     
@@ -160,11 +107,12 @@ def load_and_clean_data(url):
     return df_es[cols_to_keep]
 
 try:
-    with st.spinner('🚀 视觉引擎渲染中...'):
+    with st.spinner('🚀 强力抓取最新数据与视觉引擎渲染中...'):
         df_es = load_and_clean_data(sheet_url)
 
-        now = datetime.now()
-        current_year, current_month = now.year, now.month
+        # ✨ 核心修复：获取现实世界的“今天”
+        today = datetime.now().date()
+        current_year, current_month = today.year, today.month
 
         # ==========================================
         # 2. 界面绘制：全新顶部横幅
@@ -172,7 +120,7 @@ try:
         st.markdown(f"""
         <div class="welcome-banner">
             <h1>Hola, SEO Team!</h1>
-            <p>Welcome back to Spain (ES) Global Dashboard • {current_year}/{current_month:02d}</p>
+            <p>Welcome back to Spain (ES) Global Dashboard • Syncing to real-time Date: {today.strftime('%Y-%m-%d')}</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -183,7 +131,7 @@ try:
                 st.rerun()
                 
         # ==========================================
-        # 3. 口径 A：大盘固定指标 (当月 MTD)
+        # 3. 口径 A：大盘固定指标 (严密锚定到“现实今天”)
         # ==========================================
         date_mapping = {}
         for col in df_es.columns:
@@ -193,18 +141,21 @@ try:
                     date_mapping[col] = dt
                 except: pass
         
-        mtd_cols = [col for col, dt in date_mapping.items() if dt.year == current_year and dt.month == current_month]
+        # ✨ 核心修复：不但要限制本月，还要限制日期 <= 现实的今天！
+        mtd_cols = [col for col, dt in date_mapping.items() if dt.year == current_year and dt.month == current_month and dt <= today]
 
-        if mtd_cols:
-            max_dt = max([date_mapping[c] for c in mtd_cols])
-            curr_str = f"({current_month:02d}/01 - {max_dt.strftime('%m/%d')})"
-            lm_year = current_year if current_month > 1 else current_year - 1
-            lm_month = current_month - 1 if current_month > 1 else 12
-            lm_str = f"({lm_year}/{lm_month:02d}/01 - {lm_month:02d}/{max_dt.day:02d})"
-            ly_year = current_year - 1
-            ly_str = f"({ly_year}/{current_month:02d}/01 - {current_month:02d}/{max_dt.day:02d})"
-        else:
-            curr_str = lm_str = ly_str = "(暂无日期)"
+        # 智能构建严谨的对比字符串 (以真实的 today.day 为边界)
+        curr_str = f"({current_month:02d}/01 - {current_month:02d}/{today.day:02d})"
+        
+        lm_year = current_year if current_month > 1 else current_year - 1
+        lm_month = current_month - 1 if current_month > 1 else 12
+        # 防止上个月天数不够（比如3月31日对比2月，2月只有28天）
+        lm_day = min(today.day, calendar.monthrange(lm_year, lm_month)[1])
+        lm_str = f"({lm_year}/{lm_month:02d}/01 - {lm_month:02d}/{lm_day:02d})"
+        
+        ly_year = current_year - 1
+        ly_day = min(today.day, calendar.monthrange(ly_year, current_month)[1])
+        ly_str = f"({ly_year}/{current_month:02d}/01 - {current_month:02d}/{ly_day:02d})"
 
         def get_sum(metric_name, cols, is_currency=False):
             target = metric_name.replace(' ', '').lower()
@@ -446,7 +397,7 @@ try:
             """, unsafe_allow_html=True)
 
         # ==========================================
-        # 6. 区间趋势图 ✨ 已修正双层括号 Bug ✨
+        # 6. 区间趋势图 
         # ==========================================
         def get_trend_series(metric, cols, is_curr=False):
             target = metric.replace(' ', '').lower()
