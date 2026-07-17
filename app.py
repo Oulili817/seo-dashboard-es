@@ -414,7 +414,7 @@ try:
             """, unsafe_allow_html=True)
 
         # ==========================================
-        # 6. 区间趋势图 ✨ 升级平滑曲线与阴影填充 ✨
+        # 6. 区间趋势图 (全宽展示，消除杂乱感)
         # ==========================================
         # 颜色转换函数：将 Hex 色值转换为带透明度的 RGBA
         def hex_to_rgba(hex_color, alpha=0.1):
@@ -441,63 +441,63 @@ try:
         dates1 = [date_mapping[d].strftime('%Y-%m-%d') for d in filtered_cols_1]
         dates2 = [date_mapping[d].strftime('%Y-%m-%d') for d in filtered_cols_2] if filtered_cols_2 else []
         
-        col_c1, col_c2 = st.columns(2)
+        # ---------------- 趋势图 1：Sales ----------------
+        st.markdown('<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px; justify-content:space-between;"><div class="flex-center"><div class="icon-small bg-red flex-center" style="justify-content:center;"><i class="fa-solid fa-chart-area"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">Sales Trend Breakdown</span></div></div>', unsafe_allow_html=True)
         
-        with col_c1:
-            st.markdown('<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px; justify-content:space-between;"><div class="flex-center"><div class="icon-small bg-red flex-center" style="justify-content:center;"><i class="fa-solid fa-chart-area"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">Sales Trend Breakdown</span></div></div>', unsafe_allow_html=True)
-            
-            selected_sales_metrics = st.multiselect("Select Sales Metrics", sales_metrics_options, default=['Superset SEO销售额'], label_visibility="collapsed", key="sales_sel")
-            
-            fig_sales = go.Figure()
-            if not selected_sales_metrics:
-                fig_sales.update_layout(annotations=[dict(text="Select at least one metric to display", xref="paper", yref="paper", showarrow=False, font=dict(size=14, color="#8E8CA7"))])
-            else:
-                for metric in selected_sales_metrics:
-                    color = sales_colors[metric]
-                    s_trend1 = get_trend_series(metric, filtered_cols_1, True)
-                    s_trend2 = get_trend_series(metric, filtered_cols_2, True) if filtered_cols_2 else []
-                    
-                    if not s_trend2:
-                        fig_sales.add_trace(go.Scatter(x=dates1, y=s_trend1, mode='lines', name=metric, line=dict(color=color, width=3, shape='spline'), fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), hovertemplate=f'{metric}<br>Date: %{{x}}<br>Sales: $%{{y:,.2f}}<extra></extra>'))
-                    else:
-                        max_len = max(len(s_trend1), len(s_trend2))
-                        x_axis = [f"Day {i+1}" for i in range(max_len)]
-                        fig_sales.add_trace(go.Scatter(x=x_axis[:len(s_trend1)], y=s_trend1, mode='lines', name=f'{metric} (Pri)', customdata=dates1, hovertemplate=f'{metric} - Pri (%{{customdata}})<br>Sales: $%{{y:,.2f}}<extra></extra>', fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), line=dict(color=color, width=3, shape='spline')))
-                        fig_sales.add_trace(go.Scatter(x=x_axis[:len(s_trend2)], y=s_trend2, mode='lines', name=f'{metric} (Cmp)', customdata=dates2, hovertemplate=f'{metric} - Cmp (%{{customdata}})<br>Sales: $%{{y:,.2f}}<extra></extra>', line=dict(color=color, width=3, dash='dash', shape='spline')))
+        selected_sales_metrics = st.multiselect("Select Sales Metrics", sales_metrics_options, default=['Superset SEO销售额'], label_visibility="collapsed", key="sales_sel")
+        
+        fig_sales = go.Figure()
+        if not selected_sales_metrics:
+            fig_sales.update_layout(annotations=[dict(text="Select at least one metric to display", xref="paper", yref="paper", showarrow=False, font=dict(size=14, color="#8E8CA7"))])
+        else:
+            for metric in selected_sales_metrics:
+                color = sales_colors[metric]
+                s_trend1 = get_trend_series(metric, filtered_cols_1, True)
+                s_trend2 = get_trend_series(metric, filtered_cols_2, True) if filtered_cols_2 else []
                 
-                fig_sales.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
+                if not s_trend2:
+                    fig_sales.add_trace(go.Scatter(x=dates1, y=s_trend1, mode='lines', name=metric, line=dict(color=color, width=3, shape='spline'), fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), hovertemplate=f'{metric}<br>Date: %{{x}}<br>Sales: $%{{y:,.2f}}<extra></extra>'))
+                else:
+                    max_len = max(len(s_trend1), len(s_trend2))
+                    x_axis = [f"Day {i+1}" for i in range(max_len)]
+                    fig_sales.add_trace(go.Scatter(x=x_axis[:len(s_trend1)], y=s_trend1, mode='lines', name=f'{metric} (Pri)', customdata=dates1, hovertemplate=f'{metric} - Pri (%{{customdata}})<br>Sales: $%{{y:,.2f}}<extra></extra>', fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), line=dict(color=color, width=3, shape='spline')))
+                    fig_sales.add_trace(go.Scatter(x=x_axis[:len(s_trend2)], y=s_trend2, mode='lines', name=f'{metric} (Cmp)', customdata=dates2, hovertemplate=f'{metric} - Cmp (%{{customdata}})<br>Sales: $%{{y:,.2f}}<extra></extra>', line=dict(color=color, width=3, dash='dash', shape='spline')))
+            
+            fig_sales.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
+            
+        # 设置横向全宽后的高度，350px 看起来非常舒展
+        fig_sales.update_layout(font=font_style, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=10, b=0), height=350, xaxis=dict(showgrid=True, gridcolor='#F0F1F6'), yaxis=dict(showgrid=True, gridcolor='#F0F1F6', tickprefix="$"))
+        st.plotly_chart(fig_sales, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # ---------------- 趋势图 2：Traffic ----------------
+        st.markdown('<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px; justify-content:space-between;"><div class="flex-center"><div class="icon-small bg-blue flex-center" style="justify-content:center;"><i class="fa-solid fa-chart-line"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">Traffic Breakdown</span></div></div>', unsafe_allow_html=True)
+        
+        selected_traffic_metrics = st.multiselect("Select Traffic Metrics", traffic_metrics_options, default=['SEO流量'], label_visibility="collapsed", key="traf_sel")
+        
+        fig_traffic = go.Figure()
+        if not selected_traffic_metrics:
+            fig_traffic.update_layout(annotations=[dict(text="Select at least one metric to display", xref="paper", yref="paper", showarrow=False, font=dict(size=14, color="#8E8CA7"))])
+        else:
+            for metric in selected_traffic_metrics:
+                color = traffic_colors[metric]
+                t_trend1 = get_trend_series(metric, filtered_cols_1)
+                t_trend2 = get_trend_series(metric, filtered_cols_2) if filtered_cols_2 else []
                 
-            fig_sales.update_layout(font=font_style, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=10, b=0), height=320, xaxis=dict(showgrid=True, gridcolor='#F0F1F6'), yaxis=dict(showgrid=True, gridcolor='#F0F1F6', tickprefix="$"))
-            st.plotly_chart(fig_sales, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+                if not t_trend2: 
+                    fig_traffic.add_trace(go.Scatter(x=dates1, y=t_trend1, mode='lines', name=metric, line=dict(color=color, width=3, shape='spline'), fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), hovertemplate=f'{metric}<br>Date: %{{x}}<br>Traffic: %{{y:,}}<extra></extra>'))
+                else: 
+                    max_len = max(len(t_trend1), len(t_trend2))
+                    x_axis = [f"Day {i+1}" for i in range(max_len)]
+                    fig_traffic.add_trace(go.Scatter(x=x_axis[:len(t_trend1)], y=t_trend1, mode='lines', name=f'{metric} (Pri)', customdata=dates1, hovertemplate=f'{metric} - Pri (%{{customdata}})<br>Traffic: %{{y:,}}<extra></extra>', fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), line=dict(color=color, width=3, shape='spline')))
+                    fig_traffic.add_trace(go.Scatter(x=x_axis[:len(t_trend2)], y=t_trend2, mode='lines', name=f'{metric} (Cmp)', customdata=dates2, hovertemplate=f'{metric} - Cmp (%{{customdata}})<br>Traffic: %{{y:,}}<extra></extra>', line=dict(color=color, width=3, dash='dash', shape='spline')))
             
-        with col_c2:
-            st.markdown('<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px; justify-content:space-between;"><div class="flex-center"><div class="icon-small bg-blue flex-center" style="justify-content:center;"><i class="fa-solid fa-chart-line"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">Traffic Breakdown</span></div></div>', unsafe_allow_html=True)
-            
-            selected_traffic_metrics = st.multiselect("Select Traffic Metrics", traffic_metrics_options, default=['SEO流量'], label_visibility="collapsed", key="traf_sel")
-            
-            fig_traffic = go.Figure()
-            if not selected_traffic_metrics:
-                fig_traffic.update_layout(annotations=[dict(text="Select at least one metric to display", xref="paper", yref="paper", showarrow=False, font=dict(size=14, color="#8E8CA7"))])
-            else:
-                for metric in selected_traffic_metrics:
-                    color = traffic_colors[metric]
-                    t_trend1 = get_trend_series(metric, filtered_cols_1)
-                    t_trend2 = get_trend_series(metric, filtered_cols_2) if filtered_cols_2 else []
-                    
-                    if not t_trend2: 
-                        fig_traffic.add_trace(go.Scatter(x=dates1, y=t_trend1, mode='lines', name=metric, line=dict(color=color, width=3, shape='spline'), fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), hovertemplate=f'{metric}<br>Date: %{{x}}<br>Traffic: %{{y:,}}<extra></extra>'))
-                    else: 
-                        max_len = max(len(t_trend1), len(t_trend2))
-                        x_axis = [f"Day {i+1}" for i in range(max_len)]
-                        fig_traffic.add_trace(go.Scatter(x=x_axis[:len(t_trend1)], y=t_trend1, mode='lines', name=f'{metric} (Pri)', customdata=dates1, hovertemplate=f'{metric} - Pri (%{{customdata}})<br>Traffic: %{{y:,}}<extra></extra>', fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), line=dict(color=color, width=3, shape='spline')))
-                        fig_traffic.add_trace(go.Scatter(x=x_axis[:len(t_trend2)], y=t_trend2, mode='lines', name=f'{metric} (Cmp)', customdata=dates2, hovertemplate=f'{metric} - Cmp (%{{customdata}})<br>Traffic: %{{y:,}}<extra></extra>', line=dict(color=color, width=3, dash='dash', shape='spline')))
-                
-                fig_traffic.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
+            fig_traffic.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
 
-            fig_traffic.update_layout(font=font_style, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=10, b=0), height=320, xaxis=dict(showgrid=True, gridcolor='#F0F1F6'), yaxis=dict(showgrid=True, gridcolor='#F0F1F6'))
-            st.plotly_chart(fig_traffic, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+        # 同样给予 350px 的舒展高度
+        fig_traffic.update_layout(font=font_style, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=10, b=0), height=350, xaxis=dict(showgrid=True, gridcolor='#F0F1F6'), yaxis=dict(showgrid=True, gridcolor='#F0F1F6'))
+        st.plotly_chart(fig_traffic, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
         # ==========================================
         # 7. 底层数据明细 (主区间)
