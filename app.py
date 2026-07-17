@@ -1,5 +1,4 @@
-def update_app_code():
-    code = """import streamlit as st
+import streamlit as st
 import pandas as pd
 from datetime import datetime, date
 import calendar
@@ -10,7 +9,7 @@ import plotly.graph_objects as go
 # ==========================================
 st.set_page_config(page_title="ES 业务全局看板", page_icon="✨", layout="wide")
 
-st.markdown(\"""
+st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
     @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
@@ -69,7 +68,7 @@ st.markdown(\"""
     .box-value-white { font-size: 30px; font-weight: 700; color: #ffffff; margin: 0; }
     .compare-date-str { font-size: 12px; color: #8E8CA7; font-weight: normal; margin-left: 8px; }
 </style>
-\""", unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 1. 数据读取与 强制击穿缓存的读取机制
@@ -116,12 +115,12 @@ try:
         # ==========================================
         # 2. 界面绘制：全新顶部横幅
         # ==========================================
-        st.markdown(f\"""
+        st.markdown(f"""
         <div class="welcome-banner">
             <h1>Hola, SEO Team!</h1>
             <p>Welcome back to Spain (ES) Global Dashboard • Syncing to real-time Date: {today.strftime('%Y-%m-%d')}</p>
         </div>
-        \""", unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
         
         col_btn, _ = st.columns([1, 5])
         with col_btn:
@@ -185,7 +184,7 @@ try:
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown(f\"""
+            st.markdown(f"""
             <div class="soft-card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
                     <div class="flex-center text-muted" style="font-size: 15px; font-weight: 500;"><i class="fa-solid fa-sack-dollar" style="color:#FF6475; margin-right:8px;"></i> Sales Progress</div>
@@ -203,10 +202,10 @@ try:
                     <span style="color: #FF6475; font-weight: 800; font-size: 18px;">{prog_sales*100:.1f}%</span>
                 </div>
             </div>
-            \""", unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
             
         with col2:
-            st.markdown(f\"""
+            st.markdown(f"""
             <div class="soft-card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
                     <div class="flex-center text-muted" style="font-size: 15px; font-weight: 500;"><i class="fa-solid fa-users" style="color:#42D2E6; margin-right:8px;"></i> Traffic Progress</div>
@@ -224,7 +223,7 @@ try:
                     <span style="color: #42D2E6; font-weight: 800; font-size: 18px;">{prog_traffic*100:.1f}%</span>
                 </div>
             </div>
-            \""", unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
         # 3.2 同环比
         st.markdown('<div class="flex-center" style="margin:30px 0 20px 0;"><div class="icon-square bg-purple"><i class="fa-solid fa-chart-simple"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">MTD Monitoring</h3></div>', unsafe_allow_html=True)
@@ -237,7 +236,7 @@ try:
         c1_m, bg1_m, arr1_m = get_trend_ui(mom_sales_pct)
         c1_y, bg1_y, arr1_y = get_trend_ui(yoy_sales_pct)
 
-        st.markdown(f\"""
+        st.markdown(f"""
         <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
             <div style="flex: 1;">
                 <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Sales MTD <span class="compare-date-str">{curr_str}</span></p>
@@ -254,7 +253,7 @@ try:
                 <span style="color: {c1_y}; font-weight: 600; background: {bg1_y}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr1_y} {abs(yoy_sales_pct):.1f}% YoY</span>
             </div>
         </div>
-        \""", unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
         
         mock_lm_traffic = mtd_traffic * 0.95 if mtd_traffic > 0 else 0
         mock_ly_traffic = mtd_traffic * 1.35 if mtd_traffic > 0 else 0
@@ -263,7 +262,7 @@ try:
         c2_m, bg2_m, arr2_m = get_trend_ui(mom_traf_pct)
         c2_y, bg2_y, arr2_y = get_trend_ui(yoy_traf_pct)
 
-        st.markdown(f\"""
+        st.markdown(f"""
         <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
             <div style="flex: 1;">
                 <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Traffic MTD <span class="compare-date-str">{curr_str}</span></p>
@@ -280,7 +279,7 @@ try:
                 <span style="color: {c2_y}; font-weight: 600; background: {bg2_y}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr2_y} {abs(yoy_traf_pct):.1f}% YoY</span>
             </div>
         </div>
-        \""", unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
         st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
 
@@ -337,7 +336,7 @@ try:
         google_domain = get_latest('外链域名广度', filtered_cols_1)
 
         # 5.1 渲染：流量漏斗
-        st.markdown(f\"""
+        st.markdown(f"""
         <div class="soft-card">
             <h4 class="text-main" style="margin-top: 0; margin-bottom: 24px; display: flex; align-items: center; font-size:18px;">
                 <div class="icon-small bg-blue flex-center" style="justify-content:center;"><i class="fa-solid fa-filter"></i></div> Traffic Funnel Health
@@ -351,10 +350,10 @@ try:
             </div>
             <p class="text-muted" style="font-size: 12px; margin: 0;">✦ Traffic anomalies have been filtered. Cross-reference with bounce rate to assess channel quality.</p>
         </div>
-        \""", unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
         
-        # 5.1.5 ✨ 新增：区间维度的销售额汇总拆解卡片 ✨
-        st.markdown(f\"""
+        # 5.1.5 区间维度的销售额汇总拆解卡片
+        st.markdown(f"""
         <div class="soft-card">
             <h4 class="text-main" style="margin-top: 0; margin-bottom: 24px; display: flex; align-items: center; font-size:18px;">
                 <div class="icon-small bg-red flex-center" style="justify-content:center;"><i class="fa-solid fa-sack-dollar"></i></div> Sales Breakdown (Selected Interval)
@@ -370,12 +369,12 @@ try:
                 </div>
             </div>
         </div>
-        \""", unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
         
         # 5.2 渲染：AI & Google 资产卡片
         col_ai, col_google = st.columns(2)
         with col_ai:
-            st.markdown(f\"""
+            st.markdown(f"""
             <div class="soft-card" style="height: 100%;">
                 <p class="asset-card-title"><div class="icon-small bg-purple flex-center" style="display:inline-flex; justify-content:center; margin-bottom:-4px;"><i class="fa-solid fa-robot"></i></div> AI Assistant</p>
                 <div style="display: flex; margin-top:24px;">
@@ -390,10 +389,10 @@ try:
                 </div>
                 <p class="card-caption">Commercial value driven by AI Models.</p>
             </div>
-            \""", unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
             
         with col_google:
-            st.markdown(f\"""
+            st.markdown(f"""
             <div class="soft-card" style="height: 100%;">
                 <p class="asset-card-title"><div class="icon-small bg-orange flex-center" style="display:inline-flex; justify-content:center; margin-bottom:-4px;"><i class="fa-brands fa-google"></i></div> Google Assets</p>
                 <div style="display: flex; margin-top:24px;">
@@ -412,11 +411,17 @@ try:
                 </div>
                 <p class="card-caption">Long-term domain authority and credibility accumulation.</p>
             </div>
-            \""", unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
         # ==========================================
-        # 6. 区间趋势图
+        # 6. 区间趋势图 ✨ 升级平滑曲线与阴影填充 ✨
         # ==========================================
+        # 颜色转换函数：将 Hex 色值转换为带透明度的 RGBA
+        def hex_to_rgba(hex_color, alpha=0.1):
+            hex_color = hex_color.lstrip('#')
+            r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+            return f'rgba({r}, {g}, {b}, {alpha})'
+
         def get_trend_series(metric, cols, is_curr=False):
             target = metric.replace(' ', '').lower()
             data = df_es[df_es['Metric_Norm'] == target]
@@ -453,12 +458,12 @@ try:
                     s_trend2 = get_trend_series(metric, filtered_cols_2, True) if filtered_cols_2 else []
                     
                     if not s_trend2:
-                        fig_sales.add_trace(go.Scatter(x=dates1, y=s_trend1, mode='lines+markers', name=metric, line=dict(color=color, width=3), marker=dict(color='white', size=8, line=dict(color=color, width=2)), hovertemplate=f'{metric}<br>Date: %{{x}}<br>Sales: $%{{y:,.2f}}<extra></extra>'))
+                        fig_sales.add_trace(go.Scatter(x=dates1, y=s_trend1, mode='lines', name=metric, line=dict(color=color, width=3, shape='spline'), fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), hovertemplate=f'{metric}<br>Date: %{{x}}<br>Sales: $%{{y:,.2f}}<extra></extra>'))
                     else:
                         max_len = max(len(s_trend1), len(s_trend2))
                         x_axis = [f"Day {i+1}" for i in range(max_len)]
-                        fig_sales.add_trace(go.Scatter(x=x_axis[:len(s_trend1)], y=s_trend1, mode='lines+markers', name=f'{metric} (Pri)', customdata=dates1, hovertemplate=f'{metric} - Pri (%{{customdata}})<br>Sales: $%{{y:,.2f}}<extra></extra>', line=dict(color=color, width=3)))
-                        fig_sales.add_trace(go.Scatter(x=x_axis[:len(s_trend2)], y=s_trend2, mode='lines+markers', name=f'{metric} (Cmp)', customdata=dates2, hovertemplate=f'{metric} - Cmp (%{{customdata}})<br>Sales: $%{{y:,.2f}}<extra></extra>', line=dict(color=color, width=3, dash='dash')))
+                        fig_sales.add_trace(go.Scatter(x=x_axis[:len(s_trend1)], y=s_trend1, mode='lines', name=f'{metric} (Pri)', customdata=dates1, hovertemplate=f'{metric} - Pri (%{{customdata}})<br>Sales: $%{{y:,.2f}}<extra></extra>', fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), line=dict(color=color, width=3, shape='spline')))
+                        fig_sales.add_trace(go.Scatter(x=x_axis[:len(s_trend2)], y=s_trend2, mode='lines', name=f'{metric} (Cmp)', customdata=dates2, hovertemplate=f'{metric} - Cmp (%{{customdata}})<br>Sales: $%{{y:,.2f}}<extra></extra>', line=dict(color=color, width=3, dash='dash', shape='spline')))
                 
                 fig_sales.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
                 
@@ -481,12 +486,12 @@ try:
                     t_trend2 = get_trend_series(metric, filtered_cols_2) if filtered_cols_2 else []
                     
                     if not t_trend2: 
-                        fig_traffic.add_trace(go.Scatter(x=dates1, y=t_trend1, mode='lines+markers', name=metric, line=dict(color=color, width=3), marker=dict(color='white', size=8, line=dict(color=color, width=2)), hovertemplate=f'{metric}<br>Date: %{{x}}<br>Traffic: %{{y:,}}<extra></extra>'))
+                        fig_traffic.add_trace(go.Scatter(x=dates1, y=t_trend1, mode='lines', name=metric, line=dict(color=color, width=3, shape='spline'), fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), hovertemplate=f'{metric}<br>Date: %{{x}}<br>Traffic: %{{y:,}}<extra></extra>'))
                     else: 
                         max_len = max(len(t_trend1), len(t_trend2))
                         x_axis = [f"Day {i+1}" for i in range(max_len)]
-                        fig_traffic.add_trace(go.Scatter(x=x_axis[:len(t_trend1)], y=t_trend1, mode='lines+markers', name=f'{metric} (Pri)', customdata=dates1, hovertemplate=f'{metric} - Pri (%{{customdata}})<br>Traffic: %{{y:,}}<extra></extra>', line=dict(color=color, width=3)))
-                        fig_traffic.add_trace(go.Scatter(x=x_axis[:len(t_trend2)], y=t_trend2, mode='lines+markers', name=f'{metric} (Cmp)', customdata=dates2, hovertemplate=f'{metric} - Cmp (%{{customdata}})<br>Traffic: %{{y:,}}<extra></extra>', line=dict(color=color, width=3, dash='dash')))
+                        fig_traffic.add_trace(go.Scatter(x=x_axis[:len(t_trend1)], y=t_trend1, mode='lines', name=f'{metric} (Pri)', customdata=dates1, hovertemplate=f'{metric} - Pri (%{{customdata}})<br>Traffic: %{{y:,}}<extra></extra>', fill='tozeroy', fillcolor=hex_to_rgba(color, 0.1), line=dict(color=color, width=3, shape='spline')))
+                        fig_traffic.add_trace(go.Scatter(x=x_axis[:len(t_trend2)], y=t_trend2, mode='lines', name=f'{metric} (Cmp)', customdata=dates2, hovertemplate=f'{metric} - Cmp (%{{customdata}})<br>Traffic: %{{y:,}}<extra></extra>', line=dict(color=color, width=3, dash='dash', shape='spline')))
                 
                 fig_traffic.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
 
@@ -510,10 +515,3 @@ try:
 except Exception as e:
     st.error("Error occurred during rendering:")
     st.write(e)
-"""
-    
-    with open("app.py", "w", encoding="utf-8") as f:
-        f.write(code)
-    return "app.py updated successfully."
-
-update_app_code()
