@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import calendar
 import plotly.graph_objects as go
 
@@ -57,18 +57,24 @@ st.markdown("""
     .funnel-item:last-child { border-right: none; }
     .funnel-title { color: #8E8CA7; font-size: 13px; font-weight:500; margin: 0 0 8px 0; display: flex; align-items: center; }
     .funnel-dot { font-size: 10px; margin-right: 8px; }
-    .funnel-value { color: #2D235C; font-size: 32px; font-weight: 700; margin: 0; }
+    .funnel-value { color: #2D235C; font-size: 32px; font-weight: 700; margin: 0; display: flex; align-items: baseline;}
     
     .inner-box { padding: 20px 24px; border-radius: 20px; flex: 1; margin-right: 16px; }
     .inner-box:last-child { margin-right: 0; }
     .box-deep { background-color: #2D235C; border: none; color: white;}
     .box-light { background-color: #ffffff; border: 2px solid #F0F1F6; }
     .box-label { font-size: 13px; margin: 0 0 12px 0; display: flex; align-items: center; font-weight:500;}
-    .box-value-dark { font-size: 30px; font-weight: 700; color: #2D235C; margin: 0; }
+    .box-value-dark { font-size: 30px; font-weight: 700; color: #2D235C; margin: 0; display: flex; align-items: baseline; justify-content: center; }
     .box-value-white { font-size: 30px; font-weight: 700; color: #ffffff; margin: 0; }
     .compare-date-str { font-size: 12px; color: #8E8CA7; font-weight: normal; margin-left: 8px; }
 </style>
 """, unsafe_allow_html=True)
+
+# 颜色转换函数：将 Hex 色值转换为带透明度的 RGBA
+def hex_to_rgba(hex_color, alpha=0.1):
+    hex_color = hex_color.lstrip('#')
+    r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    return f'rgba({r}, {g}, {b}, {alpha})'
 
 # ==========================================
 # 1. 数据读取与 强制击穿缓存的读取机制
@@ -129,7 +135,7 @@ try:
                 st.rerun()
                 
         # ==========================================
-        # 3. 口径 A：大盘固定指标
+        # 3. 口径 A：大盘固定指标 (含新增的可调 Target 功能)
         # ==========================================
         date_mapping = {}
         for col in df_es.columns:
@@ -174,14 +180,21 @@ try:
         mtd_sales = get_sum('Superset SEO销售额', mtd_cols, True)
         mtd_traffic = get_sum('SEO流量', mtd_cols)
 
-        target_sales, target_traffic = 3000, 6100
+        # 3.1 目标达成 (新增动态调整目标框)
+        st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
+        
+        # 用户自定义 Target
+        t_col1, t_col2, _ = st.columns([1, 1, 2])
+        with t_col1:
+            target_sales = st.number_input("🎯 Target Sales ($)", min_value=0.0, value=3000.0, step=100.0)
+        with t_col2:
+            target_traffic = st.number_input("⚡ Target Traffic", min_value=0, value=6100, step=100)
+
         prog_sales = min(mtd_sales / target_sales, 1.0) if target_sales > 0 else 0
         prog_traffic = min(mtd_traffic / target_traffic, 1.0) if target_traffic > 0 else 0
         gap_sales = max(0, target_sales - mtd_sales)
         gap_traffic = max(0, target_traffic - mtd_traffic)
 
-        # 3.1 目标达成
-        st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
             st.markdown(f"""
@@ -312,7 +325,7 @@ try:
         else: filtered_cols_2 = []
 
         # ==========================================
-        # 5. 区间维度计算
+        # 5. 区间维度计算 (含新增的 Delta 对比计算)
         # ==========================================
         int_traffic = get_sum('SEO流量', filtered_cols_1)
         int_blog = get_sum('SEO Blog 流量', filtered_cols_1)
@@ -320,12 +333,15 @@ try:
         int_site_total = get_sum('网站总流量', filtered_cols_1)
         
         int_bounce_rate = 0.0
-        bounce_data = df_es[df_es['Metric_Norm'] == '跳出率']
-        if not bounce_data.empty and filtered_cols_1:
-            br_vals = bounce_data[filtered_cols_1].iloc[0].astype(str).str.replace('%', '', regex=False)
-            br_series = pd.to_numeric(br_vals, errors='coerce').dropna()
-            if not br_series.empty: int_bounce_rate = br_series.mean()
-
+        def calc_bounce_rate(cols):
+            bounce_data = df_es[df_es['Metric_Norm'] == '跳出率']
+            if not bounce_data.empty and cols:
+                br_vals = bounce_data[cols].iloc[0].astype(str).str.replace('%', '', regex=False)
+                br_series = pd.to_numeric(br_vals, errors='coerce').dropna()
+                if not br_series.empty: return br_series.mean()
+            return 0.0
+            
+        int_bounce_rate = calc_bounce_rate(filtered_cols_1)
         int_super_sales = get_sum('Superset SEO销售额', filtered_cols_1, True)
         int_ga4_sales = get_sum('GA4 SEO销售额', filtered_cols_1, True)
 
@@ -335,24 +351,52 @@ try:
         google_backlinks = get_latest('外链', filtered_cols_1)
         google_domain = get_latest('外链域名广度', filtered_cols_1)
 
-        # 5.1 渲染：流量漏斗
+        # ====== 新增：对比区间的计算与 Delta UI 生成器 ======
+        cmp_traffic = get_sum('SEO流量', filtered_cols_2) if enable_compare else 0
+        cmp_blog = get_sum('SEO Blog 流量', filtered_cols_2) if enable_compare else 0
+        cmp_insite = get_sum('SEO 站内流量', filtered_cols_2) if enable_compare else 0
+        cmp_site_total = get_sum('网站总流量', filtered_cols_2) if enable_compare else 0
+        cmp_bounce_rate = calc_bounce_rate(filtered_cols_2) if enable_compare else 0
+        cmp_super_sales = get_sum('Superset SEO销售额', filtered_cols_2, True) if enable_compare else 0
+        cmp_ga4_sales = get_sum('GA4 SEO销售额', filtered_cols_2, True) if enable_compare else 0
+        
+        def render_delta(curr, prev, reverse_color=False, is_pct=False):
+            if not enable_compare or len(filtered_cols_2) == 0: return ""
+            if prev == 0: return '<span style="font-size:12px; color:#8E8CA7; margin-left:8px; font-weight: 500;">(vs. --)</span>'
+            diff = curr - prev
+            pct = diff if is_pct else (diff / prev) * 100
+            
+            if diff > 0:
+                color = "#FF6475" if reverse_color else "#22C55E"
+                arrow = "↑"
+            elif diff < 0:
+                color = "#22C55E" if reverse_color else "#FF6475"
+                arrow = "↓"
+            else:
+                color = "#8E8CA7"
+                arrow = "-"
+                
+            val_str = f"{abs(pct):.1f}pp" if is_pct else f"{abs(pct):.1f}%"
+            return f'<span style="color:{color}; font-size:13px; font-weight:700; margin-left:10px;">{arrow} {val_str}</span>'
+
+        # 5.1 渲染：流量漏斗 (接入对比 Delta)
         st.markdown(f"""
         <div class="soft-card">
             <h4 class="text-main" style="margin-top: 0; margin-bottom: 24px; display: flex; align-items: center; font-size:18px;">
                 <div class="icon-small bg-blue flex-center" style="justify-content:center;"><i class="fa-solid fa-filter"></i></div> Traffic Funnel Health
             </h4>
             <div style="display: flex; justify-content: space-between; border-bottom: 2px dashed #F0F1F6; padding-bottom: 24px; margin-bottom: 18px;">
-                <div class="funnel-item" style="padding-left: 0;"><p class="funnel-title"><i class="fa-solid fa-circle funnel-dot" style="color:#2D235C;"></i> SEO 流量</p><p class="funnel-value">{int_traffic:,.0f}</p></div>
-                <div class="funnel-item"><p class="funnel-title"><i class="fa-solid fa-circle funnel-dot" style="color:#42D2E6;"></i> SEO Blog 流量</p><p class="funnel-value">{int_blog:,.0f}</p></div>
-                <div class="funnel-item"><p class="funnel-title"><i class="fa-solid fa-circle funnel-dot" style="color:#FF6475;"></i> SEO 站内流量</p><p class="funnel-value">{int_insite:,.0f}</p></div>
-                <div class="funnel-item"><p class="funnel-title"><i class="fa-solid fa-circle funnel-dot" style="color:#FFB000;"></i> 网站总流量</p><p class="funnel-value">{int_site_total:,.0f}</p></div>
-                <div class="funnel-item"><p class="funnel-title"><i class="fa-solid fa-circle funnel-dot" style="color:#8E8CA7;"></i> 跳出率</p><p class="funnel-value">{int_bounce_rate:.2f}%</p></div>
+                <div class="funnel-item" style="padding-left: 0;"><p class="funnel-title"><i class="fa-solid fa-circle funnel-dot" style="color:#2D235C;"></i> SEO 流量</p><p class="funnel-value">{int_traffic:,.0f} {render_delta(int_traffic, cmp_traffic)}</p></div>
+                <div class="funnel-item"><p class="funnel-title"><i class="fa-solid fa-circle funnel-dot" style="color:#42D2E6;"></i> SEO Blog 流量</p><p class="funnel-value">{int_blog:,.0f} {render_delta(int_blog, cmp_blog)}</p></div>
+                <div class="funnel-item"><p class="funnel-title"><i class="fa-solid fa-circle funnel-dot" style="color:#FF6475;"></i> SEO 站内流量</p><p class="funnel-value">{int_insite:,.0f} {render_delta(int_insite, cmp_insite)}</p></div>
+                <div class="funnel-item"><p class="funnel-title"><i class="fa-solid fa-circle funnel-dot" style="color:#FFB000;"></i> 网站总流量</p><p class="funnel-value">{int_site_total:,.0f} {render_delta(int_site_total, cmp_site_total)}</p></div>
+                <div class="funnel-item"><p class="funnel-title"><i class="fa-solid fa-circle funnel-dot" style="color:#8E8CA7;"></i> 跳出率</p><p class="funnel-value">{int_bounce_rate:.2f}% {render_delta(int_bounce_rate, cmp_bounce_rate, reverse_color=True, is_pct=True)}</p></div>
             </div>
             <p class="text-muted" style="font-size: 12px; margin: 0;">✦ Traffic anomalies have been filtered. Cross-reference with bounce rate to assess channel quality.</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # 5.1.5 区间维度的销售额汇总拆解卡片
+        # 5.1.5 区间维度的销售额汇总拆解卡片 (接入对比 Delta)
         st.markdown(f"""
         <div class="soft-card">
             <h4 class="text-main" style="margin-top: 0; margin-bottom: 24px; display: flex; align-items: center; font-size:18px;">
@@ -361,17 +405,17 @@ try:
             <div style="display: flex; gap: 20px;">
                 <div class="inner-box box-light" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
                     <p class="box-label text-muted" style="justify-content: center; margin-bottom: 8px;"><i class="fa-solid fa-circle" style="color:#FF6475; font-size:8px; margin-right:8px;"></i> Superset SEO Sales</p>
-                    <p class="box-value-dark" style="font-size: 36px;">$ {int_super_sales:,.2f}</p>
+                    <div class="box-value-dark" style="font-size: 36px;">$ {int_super_sales:,.2f} {render_delta(int_super_sales, cmp_super_sales)}</div>
                 </div>
                 <div class="inner-box box-light" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
                     <p class="box-label text-muted" style="justify-content: center; margin-bottom: 8px;"><i class="fa-solid fa-circle" style="color:#FFB000; font-size:8px; margin-right:8px;"></i> GA4 SEO Sales</p>
-                    <p class="box-value-dark" style="font-size: 36px;">$ {int_ga4_sales:,.2f}</p>
+                    <div class="box-value-dark" style="font-size: 36px;">$ {int_ga4_sales:,.2f} {render_delta(int_ga4_sales, cmp_ga4_sales)}</div>
                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
         
-        # 5.2 渲染：AI & Google 资产卡片
+        # 5.2 渲染：AI & Google 资产卡片 (保留原样)
         col_ai, col_google = st.columns(2)
         with col_ai:
             st.markdown(f"""
@@ -414,14 +458,8 @@ try:
             """, unsafe_allow_html=True)
 
         # ==========================================
-        # 6. 区间趋势图 (全宽展示，消除杂乱感)
+        # 6. 区间趋势图 (全宽展示)
         # ==========================================
-        # 颜色转换函数：将 Hex 色值转换为带透明度的 RGBA
-        def hex_to_rgba(hex_color, alpha=0.1):
-            hex_color = hex_color.lstrip('#')
-            r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-            return f'rgba({r}, {g}, {b}, {alpha})'
-
         def get_trend_series(metric, cols, is_curr=False):
             target = metric.replace(' ', '').lower()
             data = df_es[df_es['Metric_Norm'] == target]
@@ -465,7 +503,6 @@ try:
             
             fig_sales.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
             
-        # 设置横向全宽后的高度，350px 看起来非常舒展
         fig_sales.update_layout(font=font_style, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=10, b=0), height=350, xaxis=dict(showgrid=True, gridcolor='#F0F1F6'), yaxis=dict(showgrid=True, gridcolor='#F0F1F6', tickprefix="$"))
         st.plotly_chart(fig_sales, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -494,13 +531,98 @@ try:
             
             fig_traffic.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
 
-        # 同样给予 350px 的舒展高度
         fig_traffic.update_layout(font=font_style, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=10, b=0), height=350, xaxis=dict(showgrid=True, gridcolor='#F0F1F6'), yaxis=dict(showgrid=True, gridcolor='#F0F1F6'))
         st.plotly_chart(fig_traffic, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
+        st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
+
         # ==========================================
-        # 7. 底层数据明细 (主区间)
+        # 7. 全新功能：每周点击量 (Clicks) 手动追踪与趋势图
+        # ==========================================
+        st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-orange"><i class="fa-solid fa-mouse-pointer"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Weekly Click Tracking (GSC)</h3></div>', unsafe_allow_html=True)
+        st.caption("📝 Edit the table below to log weekly clicks. Changes are temporarily saved in your current session. You can add or delete rows.")
+        
+        # 初始化一个空表格结构保存在 session_state 中
+        if "click_tracker_df" not in st.session_state:
+            default_click_data = {
+                "Date (Week)": [date.today() - timedelta(days=7), date.today()],
+                "点击(GSC)": [0, 0],
+                "点击(非品牌词)": [0, 0],
+                "点击(Blog)": [0, 0],
+                "点击(非Blog)": [0, 0],
+                "点击(非品牌词非Blog)": [0, 0],
+                "点击(非品牌词非Blog非utm)": [0, 0]
+            }
+            st.session_state.click_tracker_df = pd.DataFrame(default_click_data)
+
+        # 可编辑的表格（自带 SaaS 风格渲染，利用 use_container_width）
+        st.markdown('<div class="soft-card" style="padding: 20px;">', unsafe_allow_html=True)
+        edited_clicks_df = st.data_editor(
+            st.session_state.click_tracker_df, 
+            num_rows="dynamic", 
+            use_container_width=True,
+            column_config={
+                "Date (Week)": st.column_config.DateColumn("Date (Week)", required=True),
+                "点击(GSC)": st.column_config.NumberColumn("点击(GSC)", min_value=0),
+                "点击(非品牌词)": st.column_config.NumberColumn("点击(非品牌词)", min_value=0),
+                "点击(Blog)": st.column_config.NumberColumn("点击(Blog)", min_value=0),
+                "点击(非Blog)": st.column_config.NumberColumn("点击(非Blog)", min_value=0),
+                "点击(非品牌词非Blog)": st.column_config.NumberColumn("点击(非品牌词非Blog)", min_value=0),
+                "点击(非品牌词非Blog非utm)": st.column_config.NumberColumn("点击(非品牌词非Blog非utm)", min_value=0),
+            }
+        )
+        st.session_state.click_tracker_df = edited_clicks_df
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # 趋势图交互与控制区
+        c_col1, c_col2 = st.columns([2, 1])
+        click_metrics_options = [c for c in edited_clicks_df.columns if c != "Date (Week)"]
+        
+        with c_col1:
+            selected_click_metrics = st.multiselect("Select Click Metrics to Visualize", click_metrics_options, default=["点击(GSC)", "点击(非品牌词)"])
+        with c_col2:
+            click_date_range = st.date_input("Filter Chart Date Range (Optional)", [])
+
+        # 点击图表渲染
+        st.markdown('<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px;"><div class="icon-small bg-orange flex-center" style="justify-content:center;"><i class="fa-solid fa-chart-area"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">Clicks Trend Breakdown</span></div>', unsafe_allow_html=True)
+        
+        # 数据过滤清洗
+        plot_df = edited_clicks_df.copy()
+        plot_df['Date (Week)'] = pd.to_datetime(plot_df['Date (Week)']).dt.date
+        if len(click_date_range) == 2:
+            plot_df = plot_df[(plot_df['Date (Week)'] >= click_date_range[0]) & (plot_df['Date (Week)'] <= click_date_range[1])]
+        plot_df = plot_df.sort_values(by="Date (Week)")
+
+        fig_clicks = go.Figure()
+        if not selected_click_metrics or plot_df.empty:
+            fig_clicks.update_layout(annotations=[dict(text="No data or metric selected to display", xref="paper", yref="paper", showarrow=False, font=dict(size=14, color="#8E8CA7"))])
+        else:
+            click_colors = ["#2D235C", "#42D2E6", "#FF6475", "#FFB000", "#22C55E", "#8E8CA7"]
+            for i, metric in enumerate(selected_click_metrics):
+                c_color = click_colors[i % len(click_colors)]
+                fig_clicks.add_trace(go.Scatter(
+                    x=plot_df['Date (Week)'], 
+                    y=plot_df[metric], 
+                    mode='lines+markers', 
+                    name=metric, 
+                    line=dict(color=c_color, width=3, shape='spline'), 
+                    marker=dict(size=8),
+                    fill='tozeroy', 
+                    fillcolor=hex_to_rgba(c_color, 0.05), 
+                    hovertemplate=f'{metric}<br>Date: %{{x}}<br>Clicks: %{{y:,}}<extra></extra>'
+                ))
+            
+            fig_clicks.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
+        
+        fig_clicks.update_layout(font=font_style, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=10, b=0), height=350, xaxis=dict(showgrid=True, gridcolor='#F0F1F6'), yaxis=dict(showgrid=True, gridcolor='#F0F1F6'))
+        st.plotly_chart(fig_clicks, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
+
+        # ==========================================
+        # 8. 底层数据明细 (主区间)
         # ==========================================
         st.markdown('<div class="flex-center" style="margin:30px 0 20px 0;"><div class="icon-square bg-gray"><i class="fa-solid fa-table"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Raw Data Matrix</h3></div>', unsafe_allow_html=True)
         
