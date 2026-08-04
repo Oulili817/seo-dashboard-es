@@ -64,7 +64,8 @@ st.markdown("""
     .box-deep { background-color: #2D235C; border: none; color: white;}
     .box-light { background-color: #ffffff; border: 2px solid #F0F1F6; }
     .box-label { font-size: 13px; margin: 0 0 12px 0; display: flex; align-items: center; font-weight:500;}
-    .box-value-dark { font-size: 30px; font-weight: 700; color: #2D235C; margin: 0; display: flex; align-items: baseline; justify-content: center; }
+    /* 此处调整了 justify-content 为 flex-start，实现靠左对齐 */
+    .box-value-dark { font-size: 30px; font-weight: 700; color: #2D235C; margin: 0; display: flex; align-items: baseline; justify-content: flex-start; } 
     .box-value-white { font-size: 30px; font-weight: 700; color: #ffffff; margin: 0; }
     .compare-date-str { font-size: 12px; color: #8E8CA7; font-weight: normal; margin-left: 8px; }
 </style>
@@ -135,7 +136,7 @@ try:
                 st.rerun()
                 
         # ==========================================
-        # 3. 口径 A：大盘固定指标 (含新增的可调 Target 功能)
+        # 3. 口径 A：大盘固定指标
         # ==========================================
         date_mapping = {}
         for col in df_es.columns:
@@ -183,7 +184,6 @@ try:
         # 3.1 目标达成 (新增动态调整目标框)
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
         
-        # 用户自定义 Target
         t_col1, t_col2, _ = st.columns([1, 1, 2])
         with t_col1:
             target_sales = st.number_input("🎯 Target Sales ($)", min_value=0.0, value=3000.0, step=100.0)
@@ -325,14 +325,13 @@ try:
         else: filtered_cols_2 = []
 
         # ==========================================
-        # 5. 区间维度计算 (含新增的 Delta 对比计算)
+        # 5. 区间维度计算 (含 Delta 对比)
         # ==========================================
         int_traffic = get_sum('SEO流量', filtered_cols_1)
         int_blog = get_sum('SEO Blog 流量', filtered_cols_1)
         int_insite = get_sum('SEO 站内流量', filtered_cols_1)
         int_site_total = get_sum('网站总流量', filtered_cols_1)
         
-        int_bounce_rate = 0.0
         def calc_bounce_rate(cols):
             bounce_data = df_es[df_es['Metric_Norm'] == '跳出率']
             if not bounce_data.empty and cols:
@@ -351,7 +350,7 @@ try:
         google_backlinks = get_latest('外链', filtered_cols_1)
         google_domain = get_latest('外链域名广度', filtered_cols_1)
 
-        # ====== 新增：对比区间的计算与 Delta UI 生成器 ======
+        # 对比区间数据
         cmp_traffic = get_sum('SEO流量', filtered_cols_2) if enable_compare else 0
         cmp_blog = get_sum('SEO Blog 流量', filtered_cols_2) if enable_compare else 0
         cmp_insite = get_sum('SEO 站内流量', filtered_cols_2) if enable_compare else 0
@@ -379,7 +378,7 @@ try:
             val_str = f"{abs(pct):.1f}pp" if is_pct else f"{abs(pct):.1f}%"
             return f'<span style="color:{color}; font-size:13px; font-weight:700; margin-left:10px;">{arrow} {val_str}</span>'
 
-        # 5.1 渲染：流量漏斗 (接入对比 Delta)
+        # 5.1 渲染：流量漏斗
         st.markdown(f"""
         <div class="soft-card">
             <h4 class="text-main" style="margin-top: 0; margin-bottom: 24px; display: flex; align-items: center; font-size:18px;">
@@ -396,7 +395,8 @@ try:
         </div>
         """, unsafe_allow_html=True)
         
-        # 5.1.5 区间维度的销售额汇总拆解卡片 (接入对比 Delta)
+        # 5.1.5 区间维度的销售额汇总拆解卡片
+        # 注：为了卡片美观，这里的 box-value-dark 我单独加入 justify-content: center 保持居中
         st.markdown(f"""
         <div class="soft-card">
             <h4 class="text-main" style="margin-top: 0; margin-bottom: 24px; display: flex; align-items: center; font-size:18px;">
@@ -405,17 +405,17 @@ try:
             <div style="display: flex; gap: 20px;">
                 <div class="inner-box box-light" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
                     <p class="box-label text-muted" style="justify-content: center; margin-bottom: 8px;"><i class="fa-solid fa-circle" style="color:#FF6475; font-size:8px; margin-right:8px;"></i> Superset SEO Sales</p>
-                    <div class="box-value-dark" style="font-size: 36px;">$ {int_super_sales:,.2f} {render_delta(int_super_sales, cmp_super_sales)}</div>
+                    <div class="box-value-dark" style="font-size: 36px; justify-content: center;">$ {int_super_sales:,.2f} {render_delta(int_super_sales, cmp_super_sales)}</div>
                 </div>
                 <div class="inner-box box-light" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
                     <p class="box-label text-muted" style="justify-content: center; margin-bottom: 8px;"><i class="fa-solid fa-circle" style="color:#FFB000; font-size:8px; margin-right:8px;"></i> GA4 SEO Sales</p>
-                    <div class="box-value-dark" style="font-size: 36px;">$ {int_ga4_sales:,.2f} {render_delta(int_ga4_sales, cmp_ga4_sales)}</div>
+                    <div class="box-value-dark" style="font-size: 36px; justify-content: center;">$ {int_ga4_sales:,.2f} {render_delta(int_ga4_sales, cmp_ga4_sales)}</div>
                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
         
-        # 5.2 渲染：AI & Google 资产卡片 (保留原样)
+        # 5.2 渲染：AI & Google 资产卡片（数字现在统一靠左了）
         col_ai, col_google = st.columns(2)
         with col_ai:
             st.markdown(f"""
@@ -428,7 +428,7 @@ try:
                     </div>
                     <div class="inner-box box-light">
                         <p class="box-label text-muted"><i class="fa-solid fa-circle" style="color:#2D235C; font-size:8px; margin-right:8px;"></i> AI Traffic</p>
-                        <p class="box-value-dark">{ai_traffic:,.0f}</p>
+                        <p class="box-value-dark">{ai_traffic:,.0f} {render_delta(ai_traffic, 0)}</p>
                     </div>
                 </div>
                 <p class="card-caption">Commercial value driven by AI Models.</p>
@@ -541,12 +541,12 @@ try:
         # 7. 全新功能：每周点击量 (Clicks) 手动追踪与趋势图
         # ==========================================
         st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-orange"><i class="fa-solid fa-mouse-pointer"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Weekly Click Tracking (GSC)</h3></div>', unsafe_allow_html=True)
-        st.caption("📝 Edit the table below to log weekly clicks. Changes are temporarily saved in your current session. You can add or delete rows.")
+        st.caption("📝 Edit the table below to log weekly clicks. Type dates like '2026/8/3-2026/8/9'. Changes are temporarily saved in your current session.")
         
-        # 初始化一个空表格结构保存在 session_state 中
+        # 初始化带格式的默认测试数据
         if "click_tracker_df" not in st.session_state:
             default_click_data = {
-                "Date (Week)": [date.today() - timedelta(days=7), date.today()],
+                "Date (Week)": ["2026/7/27-2026/8/2", "2026/8/3-2026/8/9"],
                 "点击(GSC)": [0, 0],
                 "点击(非品牌词)": [0, 0],
                 "点击(Blog)": [0, 0],
@@ -556,14 +556,14 @@ try:
             }
             st.session_state.click_tracker_df = pd.DataFrame(default_click_data)
 
-        # 可编辑的表格（自带 SaaS 风格渲染，利用 use_container_width）
+        # 改用 TextColumn 使得你可以自由输入带短横线的“时间区间字符串”
         st.markdown('<div class="soft-card" style="padding: 20px;">', unsafe_allow_html=True)
         edited_clicks_df = st.data_editor(
             st.session_state.click_tracker_df, 
             num_rows="dynamic", 
             use_container_width=True,
             column_config={
-                "Date (Week)": st.column_config.DateColumn("Date (Week)", required=True),
+                "Date (Week)": st.column_config.TextColumn("Date (Week)", required=True),
                 "点击(GSC)": st.column_config.NumberColumn("点击(GSC)", min_value=0),
                 "点击(非品牌词)": st.column_config.NumberColumn("点击(非品牌词)", min_value=0),
                 "点击(Blog)": st.column_config.NumberColumn("点击(Blog)", min_value=0),
@@ -584,15 +584,26 @@ try:
         with c_col2:
             click_date_range = st.date_input("Filter Chart Date Range (Optional)", [])
 
-        # 点击图表渲染
         st.markdown('<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px;"><div class="icon-small bg-orange flex-center" style="justify-content:center;"><i class="fa-solid fa-chart-area"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">Clicks Trend Breakdown</span></div>', unsafe_allow_html=True)
         
-        # 数据过滤清洗
+        # --- 核心：智能解析你输入的 "时间区间字符串" 来绘图和筛选 ---
         plot_df = edited_clicks_df.copy()
-        plot_df['Date (Week)'] = pd.to_datetime(plot_df['Date (Week)']).dt.date
+        
+        def parse_start_date(date_str):
+            try:
+                # 截取字符串，如 '2026/8/3-2026/8/9' 会截取出 '2026/8/3' 作为排序与筛选锚点
+                start_str = str(date_str).split('-')[0].strip()
+                return pd.to_datetime(start_str).date()
+            except:
+                return pd.to_datetime('1900-01-01').date() # 容错兜底
+
+        # 提取真实日期对象进行底层逻辑处理
+        plot_df['_Sort_Date'] = plot_df['Date (Week)'].apply(parse_start_date)
+        
         if len(click_date_range) == 2:
-            plot_df = plot_df[(plot_df['Date (Week)'] >= click_date_range[0]) & (plot_df['Date (Week)'] <= click_date_range[1])]
-        plot_df = plot_df.sort_values(by="Date (Week)")
+            plot_df = plot_df[(plot_df['_Sort_Date'] >= click_date_range[0]) & (plot_df['_Sort_Date'] <= click_date_range[1])]
+            
+        plot_df = plot_df.sort_values(by="_Sort_Date")
 
         fig_clicks = go.Figure()
         if not selected_click_metrics or plot_df.empty:
@@ -601,6 +612,7 @@ try:
             click_colors = ["#2D235C", "#42D2E6", "#FF6475", "#FFB000", "#22C55E", "#8E8CA7"]
             for i, metric in enumerate(selected_click_metrics):
                 c_color = click_colors[i % len(click_colors)]
+                # X轴直接输入你填写的 "2026/8/3-2026/8/9" 作为展示标签
                 fig_clicks.add_trace(go.Scatter(
                     x=plot_df['Date (Week)'], 
                     y=plot_df[metric], 
@@ -610,7 +622,7 @@ try:
                     marker=dict(size=8),
                     fill='tozeroy', 
                     fillcolor=hex_to_rgba(c_color, 0.05), 
-                    hovertemplate=f'{metric}<br>Date: %{{x}}<br>Clicks: %{{y:,}}<extra></extra>'
+                    hovertemplate=f'{metric}<br>Week: %{{x}}<br>Clicks: %{{y:,}}<extra></extra>'
                 ))
             
             fig_clicks.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
