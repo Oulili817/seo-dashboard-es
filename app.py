@@ -497,8 +497,7 @@ try:
         # 7. 彻底优化的 Clicks 填表 (防刷新 & 自动排序)
         # ==========================================
         st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-orange"><i class="fa-solid fa-mouse-pointer"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Weekly Click Tracking (GSC)</h3></div>', unsafe_allow_html=True)
-        st.caption("📝 **操作提示：** 在表格中批量填入你的所有数据，确认无误后点击下方 **Save & Sync Data** 按钮统一提交，避免频繁刷新卡顿。表格中的数据会在保存时**自动按时间智能倒序排列**（最新的一周在最上）。")
-        
+               
         # 提取日期的解析器（给倒序排序用）
         def parse_start_date(date_str):
             try:
