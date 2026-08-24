@@ -662,6 +662,9 @@ try:
         tab_raw1, tab_raw2 = st.tabs(["📊 Primary Dashboard Matrix", "📈 GSC Matrix"])
         
         with tab_raw1:
+            # 👇 就是补回了下面这一行代码，把原始数据列名转换成 YYYY-MM-DD 格式
+            dates1 = [date_mapping[d].strftime('%Y-%m-%d') for d in filtered_cols_1] 
+            
             df_display = df_es[['Metric'] + filtered_cols_1].copy()
             df_display.columns = ['Metric'] + dates1
             df_display = df_display.set_index('Metric')
