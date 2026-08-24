@@ -257,7 +257,6 @@ try:
 
         # 3.1 目标达成 (URL 参数永久保存配置)
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
-        st.caption("💡 设定目标后，数值会自动存入网页链接中。**请将设定好目标的网页加入收藏夹（书签）**，下次直接打开就不会丢失啦！")
 
         saved_sales = float(st.query_params.get("sales", 3000.0))
         saved_traffic = int(st.query_params.get("traffic", 6100))
