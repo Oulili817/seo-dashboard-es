@@ -3,6 +3,8 @@ import pandas as pd
 from datetime import datetime, date, timedelta
 import calendar
 import plotly.graph_objects as go
+import json
+import os
 
 # ==========================================
 # 0. 页面基础设置与 顶级 SaaS 视觉风格注入
@@ -69,7 +71,6 @@ st.markdown("""
     .box-value-white { font-size: 30px; font-weight: 700; color: #ffffff; margin: 0; }
     .compare-date-str { font-size: 12px; color: #8E8CA7; font-weight: normal; margin-left: 8px; }
     
-    /* 综合对比报表的极致视觉 CSS */
     .wk-table { width: 100%; border-collapse: collapse; font-family: 'Poppins', 'Segoe UI', sans-serif; background: #fff; border-radius: 12px; overflow: hidden; }
     .wk-table th { background-color: #F8FAFC; padding: 14px 16px; border: 1px solid #E2E8F0; text-align: center; color: #475569; font-weight: 600; font-size: 14px; }
     .wk-table td { padding: 14px 16px; border: 1px solid #E2E8F0; text-align: center; color: #1E293B; font-weight: 500; font-size: 14px; transition: background 0.2s; }
@@ -79,6 +80,35 @@ st.markdown("""
     .text-red { color: #FF6475 !important; }
 </style>
 """, unsafe_allow_html=True)
+
+# ==========================================
+# 🔐 0.1 新增：SaaS 级密码保护模块
+# ==========================================
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+
+if not st.session_state["authenticated"]:
+    # 使用列布局居中显示登录框
+    _, col_login, _ = st.columns([1.5, 2, 1.5])
+    with col_login:
+        st.markdown('<div class="soft-card" style="text-align: center; margin-top: 100px;">', unsafe_allow_html=True)
+        st.markdown('<div class="icon-square bg-purple" style="margin: 0 auto 16px auto;"><i class="fa-solid fa-lock"></i></div>', unsafe_allow_html=True)
+        st.markdown('<h3 class="text-main" style="margin-top: 0;">Restricted Access</h3>', unsafe_allow_html=True)
+        st.caption("Please enter the passkey to access the ES Global Dashboard.")
+        
+        # 密码输入框
+        pwd = st.text_input("Passkey", type="password", label_visibility="collapsed", placeholder="Enter Passkey...")
+        
+        if st.button("Unlock Dashboard", use_container_width=True):
+            if pwd == "escalate":
+                st.session_state["authenticated"] = True
+                st.rerun()  # 密码正确，重新运行渲染页面
+            else:
+                st.error("🔒 Incorrect passkey. Please try again.")
+        st.markdown('</div>', unsafe_allow_html=True)
+    # st.stop() 确保在输入正确密码前，底部的所有数据抓取和绘图代码均不会执行
+    st.stop()
+
 
 from plotly.subplots import make_subplots
 
@@ -91,8 +121,6 @@ def hex_to_rgba(hex_color, alpha=0.1):
 # 1. 核心数据统一抓取区
 # ==========================================
 sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4KTuYQtC6xsRIwgWLDK9aJUhqmKDmUg4XmMxbsKadyj4QSRM9GNvDjyYz7z8vzKj8nohA7a8ukiLz/pub?gid=0&single=true&output=csv"
-
-# ⚠️ 此处一定要替换成你真正的点击数据表发布的 CSV 链接！
 GSC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzi-PSTqsbOE_3GmT9xOU-2UNiXhlUYeW118jPq4pFBY3arsMbVtIr1BAMbv5qYL3BFmKqzcb5vBAO/pub?gid=0&single=true&output=csv"
 
 @st.cache_data(ttl=600)
@@ -151,7 +179,6 @@ def load_gsc_data(url):
             
     return df_gsc.sort_values('Date').reset_index(drop=True)
 
-# 强力字符清洗函数：一劳永逸解决全角括号和空格导致的匹配失败问题
 def norm_cat(s):
     return str(s).lower().replace(" ", "").replace("（", "(").replace("）", ")").strip()
 
@@ -167,7 +194,7 @@ try:
         current_year, current_month = today.year, today.month
 
         # ==========================================
-        # 2. 界面绘制 & 目标配置 (URL 永久保存版)
+        # 2. 界面绘制 & 目标配置 
         # ==========================================
         st.markdown(f"""
         <div class="welcome-banner">
@@ -228,11 +255,10 @@ try:
         mtd_sales = get_sum('Superset SEO销售额', mtd_cols, True)
         mtd_traffic = get_sum('SEO流量', mtd_cols)
 
-        # 3.1 目标达成 (URL 参数永久保存配置，方便加入书签)
+        # 3.1 目标达成 (URL 参数永久保存配置)
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
         st.caption("💡 设定目标后，数值会自动存入网页链接中。**请将设定好目标的网页加入收藏夹（书签）**，下次直接打开就不会丢失啦！")
 
-        # 读取 URL 中的参数作为默认值
         saved_sales = float(st.query_params.get("sales", 3000.0))
         saved_traffic = int(st.query_params.get("traffic", 6100))
         
@@ -242,7 +268,6 @@ try:
         with t_col2:
             target_traffic = st.number_input("⚡ Target Traffic", min_value=0, value=saved_traffic, step=100)
 
-        # 实时回写到 URL
         st.query_params["sales"] = target_sales
         st.query_params["traffic"] = target_traffic
 
@@ -362,11 +387,13 @@ try:
         with header_col1:
             st.markdown('<div class="flex-center" style="margin-bottom:6px;"><div class="icon-square bg-blue"><i class="fa-regular fa-calendar"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Interval Analysis</h3></div>', unsafe_allow_html=True)
             st.caption("Modules below are strictly bounded by your date selection.")
+        
+        # ⚠️ 核心修复：移除日历的限制，让你随意选到 2026 甚至 2030 年！
         with header_col2:
-            primary_dates = st.date_input("🗓️ Primary Date Range", [min_date, max_date], min_value=min_date, max_value=max_date)
+            primary_dates = st.date_input("🗓️ Primary Date Range", [min_date, max_date])
         with header_col3:
             enable_compare = st.checkbox("🔄 Enable Trend Comparison")
-            if enable_compare: compare_dates = st.date_input("🗓️ Compare Date Range", [min_date, max_date], min_value=min_date, max_value=max_date)
+            if enable_compare: compare_dates = st.date_input("🗓️ Compare Date Range", [min_date, max_date])
             else: compare_dates = []
 
         if len(primary_dates) == 2: start_d1, end_d1 = primary_dates
@@ -497,7 +524,7 @@ try:
         st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
 
         # ==========================================
-        # 6. 新功能：可自修改的综合对比报表 (支持截图级完美格式)
+        # 6. 新功能：可自修改的综合对比报表
         # ==========================================
         st.markdown('<div class="flex-center" style="margin-bottom:6px;"><div class="icon-square bg-green"><i class="fa-solid fa-table-columns"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Weekly Performance Comparison</h3></div>', unsafe_allow_html=True)
         st.caption("✦ Data dynamically aggregated from both Dashboards to mirror your manual report.")
@@ -509,6 +536,7 @@ try:
         default_w1_end = default_w2_start - timedelta(days=1)
         default_w1_start = default_w1_end - timedelta(days=6)
         
+        # 同样移除了对比日历的日期限制
         with col_w1:
             wk_range1 = st.date_input("📅 Compare Date Range 1 (Previous)", [default_w1_start, default_w1_end])
         with col_w2:
@@ -518,7 +546,6 @@ try:
             r1_start, r1_end = wk_range1
             r2_start, r2_end = wk_range2
             
-            # --- 数据提取与处理 ---
             cols_r1 = [col for col, dt in date_mapping.items() if r1_start <= dt <= r1_end]
             cols_r2 = [col for col, dt in date_mapping.items() if r2_start <= dt <= r2_end]
             
@@ -529,7 +556,6 @@ try:
                 df_gsc_r1 = pd.DataFrame()
                 df_gsc_r2 = pd.DataFrame()
                 
-            # 利用前文定义的强力清洗器 norm_cat 解决全角括号匹配报错问题
             def get_gsc_val(df, cat):
                 if df.empty: return 0
                 target_cat = norm_cat(cat)
@@ -568,11 +594,8 @@ try:
             
             df_compare_base = pd.DataFrame(raw_table_data)
             
-            # --- 分层渲染黑科技开始 ---
-            # 1. 预留展示美丽 HTML 表格的空容器在顶部
             table_container = st.empty()
             
-            # 2. 在下方放一个折叠的可编辑面板
             with st.expander("⚙️ 发现异常想调整？点此展开底层数据进行手动微调 (Edit Raw Values)"):
                 st.info("💡 提示：在此处修改 W1 或 W2 的数值，上方的精美表格会立即以您的新数据为准进行渲染，包括红绿变化与排版！")
                 edited_df = st.data_editor(
@@ -586,7 +609,6 @@ try:
                     use_container_width=True
                 )
                 
-            # 3. 读取 edited_df 中的最新值生成 HTML 写入顶部的容器
             table_html = f"""
             <table class="wk-table" style="margin-bottom: 24px;">
                 <tr>
@@ -625,7 +647,7 @@ try:
 
 
         # ==========================================
-        # 7. GSC 图表 (完美保留)
+        # 7. GSC 图表 
         # ==========================================
         if not df_gsc.empty:
             st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-orange"><i class="fa-brands fa-google"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">GSC Performance Tracking</h3></div>', unsafe_allow_html=True)
@@ -679,7 +701,7 @@ try:
             st.markdown('</div>', unsafe_allow_html=True)
 
         # ==========================================
-        # 8. 底层数据明细 (修复了丢失 dates1 的问题)
+        # 8. 底层数据明细 
         # ==========================================
         st.markdown('<div class="flex-center" style="margin:30px 0 20px 0;"><div class="icon-square bg-gray"><i class="fa-solid fa-table"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Raw Data Matrix</h3></div>', unsafe_allow_html=True)
         
