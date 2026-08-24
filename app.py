@@ -603,8 +603,8 @@ try:
             
             table_container = st.empty()
             
-            with st.expander("⚙️ 发现异常想调整？ (Edit Raw Values)"):
-                st.info("💡 提示：在此处修改 W1 或 W2 的数值")
+            with st.expander("⚙️ Edit Raw Values"):
+                st.info("💡 在此处修改 W1 或 W2 的数值")
                 edited_df = st.data_editor(
                     df_compare_base[["日期", "W1", "W2"]],
                     column_config={
