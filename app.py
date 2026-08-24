@@ -3,8 +3,6 @@ import pandas as pd
 from datetime import datetime, date, timedelta
 import calendar
 import plotly.graph_objects as go
-import json
-import os
 
 # ==========================================
 # 0. 页面基础设置与 顶级 SaaS 视觉风格注入
@@ -71,7 +69,7 @@ st.markdown("""
     .box-value-white { font-size: 30px; font-weight: 700; color: #ffffff; margin: 0; }
     .compare-date-str { font-size: 12px; color: #8E8CA7; font-weight: normal; margin-left: 8px; }
     
-    /* 综合对比报表的 CSS */
+    /* 综合对比报表的极致视觉 CSS */
     .wk-table { width: 100%; border-collapse: collapse; font-family: 'Poppins', 'Segoe UI', sans-serif; background: #fff; border-radius: 12px; overflow: hidden; }
     .wk-table th { background-color: #F8FAFC; padding: 14px 16px; border: 1px solid #E2E8F0; text-align: center; color: #475569; font-weight: 600; font-size: 14px; }
     .wk-table td { padding: 14px 16px; border: 1px solid #E2E8F0; text-align: center; color: #1E293B; font-weight: 500; font-size: 14px; transition: background 0.2s; }
@@ -90,10 +88,11 @@ def hex_to_rgba(hex_color, alpha=0.1):
     return f'rgba({r}, {g}, {b}, {alpha})'
 
 # ==========================================
-# 1. 核心数据统一抓取区 (包含大盘表与GSC表)
+# 1. 核心数据统一抓取区
 # ==========================================
 sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4KTuYQtC6xsRIwgWLDK9aJUhqmKDmUg4XmMxbsKadyj4QSRM9GNvDjyYz7z8vzKj8nohA7a8ukiLz/pub?gid=0&single=true&output=csv"
-# ⚠️ 记得替换成你自己的 GSC CSV 链接
+
+# ⚠️ 此处一定要替换成你真正的点击数据表发布的 CSV 链接！
 GSC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzi-PSTqsbOE_3GmT9xOU-2UNiXhlUYeW118jPq4pFBY3arsMbVtIr1BAMbv5qYL3BFmKqzcb5vBAO/pub?gid=0&single=true&output=csv"
 
 @st.cache_data(ttl=600)
@@ -152,19 +151,23 @@ def load_gsc_data(url):
             
     return df_gsc.sort_values('Date').reset_index(drop=True)
 
+# 强力字符清洗函数：一劳永逸解决全角括号和空格导致的匹配失败问题
+def norm_cat(s):
+    return str(s).lower().replace(" ", "").replace("（", "(").replace("）", ")").strip()
+
 try:
     with st.spinner('🚀 同步大盘与 Google Search Console 数据引擎中...'):
         df_es = load_and_clean_data(sheet_url)
         try:
             df_gsc = load_gsc_data(GSC_CSV_URL)
         except:
-            df_gsc = pd.DataFrame() # 防错处理
+            df_gsc = pd.DataFrame() 
 
         today = datetime.now().date()
         current_year, current_month = today.year, today.month
 
         # ==========================================
-        # 2. 界面绘制 & 目标配置 (永久保存逻辑)
+        # 2. 界面绘制 & 目标配置 (URL 永久保存版)
         # ==========================================
         st.markdown(f"""
         <div class="welcome-banner">
@@ -179,21 +182,6 @@ try:
                 load_and_clean_data.clear()
                 load_gsc_data.clear()
                 st.rerun()
-                
-        # --- Targets 永久保存逻辑 ---
-        TARGETS_FILE = "targets_config.json"
-        if os.path.exists(TARGETS_FILE):
-            with open(TARGETS_FILE, 'r') as f:
-                saved_targets = json.load(f)
-        else:
-            saved_targets = {"sales": 3000.0, "traffic": 6100}
-
-        def save_targets():
-            with open(TARGETS_FILE, 'w') as f:
-                json.dump({
-                    "sales": st.session_state.target_sales_input,
-                    "traffic": st.session_state.target_traffic_input
-                }, f)
 
         # ==========================================
         # 3. 口径 A：大盘固定指标
@@ -207,7 +195,6 @@ try:
                 except: pass
         
         mtd_cols = [col for col, dt in date_mapping.items() if dt.year == current_year and dt.month == current_month and dt <= today]
-
         curr_str = f"({current_month:02d}/01 - {current_month:02d}/{today.day:02d})"
         
         lm_year = current_year if current_month > 1 else current_year - 1
@@ -241,14 +228,23 @@ try:
         mtd_sales = get_sum('Superset SEO销售额', mtd_cols, True)
         mtd_traffic = get_sum('SEO流量', mtd_cols)
 
-        # 3.1 目标达成 
+        # 3.1 目标达成 (URL 参数永久保存配置，方便加入书签)
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
+        st.caption("💡 设定目标后，数值会自动存入网页链接中。**请将设定好目标的网页加入收藏夹（书签）**，下次直接打开就不会丢失啦！")
+
+        # 读取 URL 中的参数作为默认值
+        saved_sales = float(st.query_params.get("sales", 3000.0))
+        saved_traffic = int(st.query_params.get("traffic", 6100))
         
         t_col1, t_col2, _ = st.columns([1, 1, 2])
         with t_col1:
-            target_sales = st.number_input("🎯 Target Sales ($)", min_value=0.0, value=float(saved_targets["sales"]), step=100.0, key="target_sales_input", on_change=save_targets)
+            target_sales = st.number_input("🎯 Target Sales ($)", min_value=0.0, value=saved_sales, step=100.0)
         with t_col2:
-            target_traffic = st.number_input("⚡ Target Traffic", min_value=0, value=int(saved_targets["traffic"]), step=100, key="target_traffic_input", on_change=save_targets)
+            target_traffic = st.number_input("⚡ Target Traffic", min_value=0, value=saved_traffic, step=100)
+
+        # 实时回写到 URL
+        st.query_params["sales"] = target_sales
+        st.query_params["traffic"] = target_traffic
 
         prog_sales = min(mtd_sales / target_sales, 1.0) if target_sales > 0 else 0
         prog_traffic = min(mtd_traffic / target_traffic, 1.0) if target_traffic > 0 else 0
@@ -501,14 +497,13 @@ try:
         st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
 
         # ==========================================
-        # 6. 新功能：综合周期对比报表 (合并 ES + GSC)
+        # 6. 新功能：可自修改的综合对比报表 (支持截图级完美格式)
         # ==========================================
         st.markdown('<div class="flex-center" style="margin-bottom:6px;"><div class="icon-square bg-green"><i class="fa-solid fa-table-columns"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Weekly Performance Comparison</h3></div>', unsafe_allow_html=True)
         st.caption("✦ Data dynamically aggregated from both Dashboards to mirror your manual report.")
         
         col_w1, col_w2, _ = st.columns([1, 1, 2])
         
-        # 默认逻辑：前7天 vs 再往前的7天
         default_w2_end = date.today()
         default_w2_start = default_w2_end - timedelta(days=6)
         default_w1_end = default_w2_start - timedelta(days=1)
@@ -523,11 +518,10 @@ try:
             r1_start, r1_end = wk_range1
             r2_start, r2_end = wk_range2
             
-            # 过滤 ES 原始表日期
+            # --- 数据提取与处理 ---
             cols_r1 = [col for col, dt in date_mapping.items() if r1_start <= dt <= r1_end]
             cols_r2 = [col for col, dt in date_mapping.items() if r2_start <= dt <= r2_end]
             
-            # 过滤 GSC 点击表日期
             if not df_gsc.empty:
                 df_gsc_r1 = df_gsc[(df_gsc['Date'] >= r1_start) & (df_gsc['Date'] <= r1_end)]
                 df_gsc_r2 = df_gsc[(df_gsc['Date'] >= r2_start) & (df_gsc['Date'] <= r2_end)]
@@ -535,16 +529,17 @@ try:
                 df_gsc_r1 = pd.DataFrame()
                 df_gsc_r2 = pd.DataFrame()
                 
+            # 利用前文定义的强力清洗器 norm_cat 解决全角括号匹配报错问题
             def get_gsc_val(df, cat):
                 if df.empty: return 0
+                target_cat = norm_cat(cat)
                 for col in df.columns:
                     if ' - ' in col:
                         c_cat, c_sub = col.split(' - ', 1)
-                        if c_cat.replace(" ", "") == cat.replace(" ", "") and c_sub.strip().lower() == 'clicks':
+                        if norm_cat(c_cat) == target_cat and c_sub.strip().lower() == 'clicks':
                             return df[col].sum()
                 return 0
                 
-            # 指标映射 (展示名称, 格式, 来源, 对应的匹配Key)
             metrics_list = [
                 ("销售额 (Superset)", "currency", "es", "Superset SEO销售额"),
                 ("流量 (GA4)", "number", "es", "SEO流量"),
@@ -560,6 +555,38 @@ try:
                 ("点击 (非品牌词非Blog非utm)", "number", "gsc", "点击(非品牌词非Blog非utm)")
             ]
             
+            raw_table_data = []
+            for m_name, m_type, src, m_key in metrics_list:
+                is_curr = (m_type == "currency")
+                if src == "es":
+                    v1 = get_sum(m_key, cols_r1, is_curr)
+                    v2 = get_sum(m_key, cols_r2, is_curr)
+                else:
+                    v1 = get_gsc_val(df_gsc_r1, m_key)
+                    v2 = get_gsc_val(df_gsc_r2, m_key)
+                raw_table_data.append({"日期": m_name, "W1": v1, "W2": v2, "_type": m_type})
+            
+            df_compare_base = pd.DataFrame(raw_table_data)
+            
+            # --- 分层渲染黑科技开始 ---
+            # 1. 预留展示美丽 HTML 表格的空容器在顶部
+            table_container = st.empty()
+            
+            # 2. 在下方放一个折叠的可编辑面板
+            with st.expander("⚙️ 发现异常想调整？点此展开底层数据进行手动微调 (Edit Raw Values)"):
+                st.info("💡 提示：在此处修改 W1 或 W2 的数值，上方的精美表格会立即以您的新数据为准进行渲染，包括红绿变化与排版！")
+                edited_df = st.data_editor(
+                    df_compare_base[["日期", "W1", "W2"]],
+                    column_config={
+                        "日期": st.column_config.TextColumn("指标名称", disabled=True),
+                        "W1": st.column_config.NumberColumn(f"{r1_start.strftime('%-m/%-d')}-{r1_end.strftime('%-m/%-d')}", format="%.2f"),
+                        "W2": st.column_config.NumberColumn(f"{r2_start.strftime('%-m/%-d')}-{r2_end.strftime('%-m/%-d')}", format="%.2f"),
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+                
+            # 3. 读取 edited_df 中的最新值生成 HTML 写入顶部的容器
             table_html = f"""
             <table class="wk-table" style="margin-bottom: 24px;">
                 <tr>
@@ -570,19 +597,16 @@ try:
                 </tr>
             """
             
-            for m_name, m_type, src, m_key in metrics_list:
+            for i, row in edited_df.iterrows():
+                m_name = row["日期"]
+                v1 = row["W1"]
+                v2 = row["W2"]
+                m_type = df_compare_base.loc[i, "_type"]
                 is_curr = (m_type == "currency")
-                if src == "es":
-                    v1 = get_sum(m_key, cols_r1, is_curr)
-                    v2 = get_sum(m_key, cols_r2, is_curr)
-                else:
-                    v1 = get_gsc_val(df_gsc_r1, m_key)
-                    v2 = get_gsc_val(df_gsc_r2, m_key)
-                    
+
                 v1_str = f"${v1:,.2f}" if is_curr else f"{v1:,.0f}"
                 v2_str = f"${v2:,.2f}" if is_curr else f"{v2:,.0f}"
-                
-                # 百分比及颜色计算
+
                 if v1 == 0 and v2 == 0:
                     pct_str, color_class = ("0.00%", "")
                 elif v1 == 0:
@@ -591,17 +615,17 @@ try:
                     pct = ((v2 - v1) / v1) * 100
                     pct_str = f"{pct:+.2f}%"
                     color_class = "text-green" if pct > 0 else ("text-red" if pct < 0 else "")
-                    
-                table_html += f"<tr><td>{m_name}</td><td>{v1_str}</td><td class='{color_class}'>{v2_str}</td><td class='{color_class}'>{pct_str}</td></tr>"
                 
+                table_html += f"<tr><td>{m_name}</td><td>{v1_str}</td><td class='{color_class}'>{v2_str}</td><td class='{color_class}'>{pct_str}</td></tr>"
+
             table_html += "</table>"
-            st.markdown(table_html, unsafe_allow_html=True)
+            table_container.markdown(table_html, unsafe_allow_html=True)
 
         st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
 
 
         # ==========================================
-        # 7. GSC 图表 (保留原功能)
+        # 7. GSC 图表 (完美保留)
         # ==========================================
         if not df_gsc.empty:
             st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-orange"><i class="fa-brands fa-google"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">GSC Performance Tracking</h3></div>', unsafe_allow_html=True)
@@ -655,16 +679,14 @@ try:
             st.markdown('</div>', unsafe_allow_html=True)
 
         # ==========================================
-        # 8. 底层数据明细 (主区间 & GSC数据)
+        # 8. 底层数据明细 (修复了丢失 dates1 的问题)
         # ==========================================
         st.markdown('<div class="flex-center" style="margin:30px 0 20px 0;"><div class="icon-square bg-gray"><i class="fa-solid fa-table"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Raw Data Matrix</h3></div>', unsafe_allow_html=True)
         
         tab_raw1, tab_raw2 = st.tabs(["📊 Primary Dashboard Matrix", "📈 GSC Matrix"])
         
         with tab_raw1:
-            # 👇 就是补回了下面这一行代码，把原始数据列名转换成 YYYY-MM-DD 格式
-            dates1 = [date_mapping[d].strftime('%Y-%m-%d') for d in filtered_cols_1] 
-            
+            dates1 = [date_mapping[d].strftime('%Y-%m-%d') for d in filtered_cols_1]
             df_display = df_es[['Metric'] + filtered_cols_1].copy()
             df_display.columns = ['Metric'] + dates1
             df_display = df_display.set_index('Metric')
