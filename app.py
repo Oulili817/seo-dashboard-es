@@ -82,13 +82,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🔐 0.1 新增：SaaS 级密码保护模块
+# 🔐 0.1 SaaS 级密码保护模块
 # ==========================================
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
 if not st.session_state["authenticated"]:
-    # 使用列布局居中显示登录框
     _, col_login, _ = st.columns([1.5, 2, 1.5])
     with col_login:
         st.markdown('<div class="soft-card" style="text-align: center; margin-top: 100px;">', unsafe_allow_html=True)
@@ -96,17 +95,15 @@ if not st.session_state["authenticated"]:
         st.markdown('<h3 class="text-main" style="margin-top: 0;">Restricted Access</h3>', unsafe_allow_html=True)
         st.caption("Please enter the passkey to access the ES Global Dashboard.")
         
-        # 密码输入框
         pwd = st.text_input("Passkey", type="password", label_visibility="collapsed", placeholder="Enter Passkey...")
         
         if st.button("Unlock Dashboard", use_container_width=True):
             if pwd == "escalate":
                 st.session_state["authenticated"] = True
-                st.rerun()  # 密码正确，重新运行渲染页面
+                st.rerun() 
             else:
                 st.error("🔒 Incorrect passkey. Please try again.")
         st.markdown('</div>', unsafe_allow_html=True)
-    # st.stop() 确保在输入正确密码前，底部的所有数据抓取和绘图代码均不会执行
     st.stop()
 
 
@@ -121,6 +118,7 @@ def hex_to_rgba(hex_color, alpha=0.1):
 # 1. 核心数据统一抓取区
 # ==========================================
 sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4KTuYQtC6xsRIwgWLDK9aJUhqmKDmUg4XmMxbsKadyj4QSRM9GNvDjyYz7z8vzKj8nohA7a8ukiLz/pub?gid=0&single=true&output=csv"
+# ⚠️ 记得确保这里的链接是你真实的 GSC 表格发布的链接
 GSC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzi-PSTqsbOE_3GmT9xOU-2UNiXhlUYeW118jPq4pFBY3arsMbVtIr1BAMbv5qYL3BFmKqzcb5vBAO/pub?gid=0&single=true&output=csv"
 
 @st.cache_data(ttl=600)
@@ -211,7 +209,7 @@ try:
                 st.rerun()
 
         # ==========================================
-        # 3. 口径 A：大盘固定指标
+        # 3. 口径 A：大盘固定指标 (修复了 MTD 读取历史数据的逻辑)
         # ==========================================
         date_mapping = {}
         for col in df_es.columns:
@@ -224,14 +222,22 @@ try:
         mtd_cols = [col for col, dt in date_mapping.items() if dt.year == current_year and dt.month == current_month and dt <= today]
         curr_str = f"({current_month:02d}/01 - {current_month:02d}/{today.day:02d})"
         
+        # 真实计算 Last Month 对应日期的列
         lm_year = current_year if current_month > 1 else current_year - 1
         lm_month = current_month - 1 if current_month > 1 else 12
         lm_day = min(today.day, calendar.monthrange(lm_year, lm_month)[1])
         lm_str = f"({lm_year}/{lm_month:02d}/01 - {lm_month:02d}/{lm_day:02d})"
+        lm_start = date(lm_year, lm_month, 1)
+        lm_end = date(lm_year, lm_month, lm_day)
+        lm_cols = [col for col, dt in date_mapping.items() if lm_start <= dt <= lm_end]
         
+        # 真实计算 Last Year 对应日期的列
         ly_year = current_year - 1
         ly_day = min(today.day, calendar.monthrange(ly_year, current_month)[1])
         ly_str = f"({ly_year}/{current_month:02d}/01 - {current_month:02d}/{ly_day:02d})"
+        ly_start = date(ly_year, current_month, 1)
+        ly_end = date(ly_year, current_month, ly_day)
+        ly_cols = [col for col, dt in date_mapping.items() if ly_start <= dt <= ly_end]
 
         def get_sum(metric_name, cols, is_currency=False):
             target = metric_name.replace(' ', '').lower()
@@ -252,11 +258,19 @@ try:
                     return pd.to_numeric(val, errors='coerce')
             return 0
 
+        # 当前月数据
         mtd_sales = get_sum('Superset SEO销售额', mtd_cols, True)
         mtd_traffic = get_sum('SEO流量', mtd_cols)
 
-        # 3.1 目标达成 (URL 参数永久保存配置)
+        # ================== 核心修复：真实读取历史区间数据 ==================
+        real_lm_sales = get_sum('Superset SEO销售额', lm_cols, True)
+        real_ly_sales = get_sum('Superset SEO销售额', ly_cols, True)
+        real_lm_traffic = get_sum('SEO流量', lm_cols)
+        real_ly_traffic = get_sum('SEO流量', ly_cols)
+
+        # 3.1 目标达成 (URL 参数永久保存配置，方便加入书签)
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
+        st.caption("💡 设定目标后，数值会自动存入网页链接中。**请将设定好目标的网页加入收藏夹（书签）**，下次直接打开就不会丢失啦！")
 
         saved_sales = float(st.query_params.get("sales", 3000.0))
         saved_traffic = int(st.query_params.get("traffic", 6100))
@@ -321,12 +335,16 @@ try:
         st.markdown('<div class="flex-center" style="margin:30px 0 20px 0;"><div class="icon-square bg-purple"><i class="fa-solid fa-chart-simple"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">MTD Monitoring</h3></div>', unsafe_allow_html=True)
         def get_trend_ui(pct): return ("#FF6475" if pct < 0 else "#22C55E", "#FFF0F2" if pct < 0 else "#F0FDF4", "↓" if pct < 0 else "↑")
 
-        mock_lm_sales = mtd_sales * 1.03 if mtd_sales > 0 else 0
-        mock_ly_sales = mtd_sales * 1.15 if mtd_sales > 0 else 0
-        mom_sales_pct = ((mtd_sales - mock_lm_sales) / mock_lm_sales) * 100 if mock_lm_sales else 0
-        yoy_sales_pct = ((mtd_sales - mock_ly_sales) / mock_ly_sales) * 100 if mock_ly_sales else 0
+        # 使用真实抓取的数据计算同环比
+        mom_sales_pct = ((mtd_sales - real_lm_sales) / real_lm_sales) * 100 if real_lm_sales else 0
+        yoy_sales_pct = ((mtd_sales - real_ly_sales) / real_ly_sales) * 100 if real_ly_sales else 0
+        mom_traf_pct = ((mtd_traffic - real_lm_traffic) / real_lm_traffic) * 100 if real_lm_traffic else 0
+        yoy_traf_pct = ((mtd_traffic - real_ly_traffic) / real_ly_traffic) * 100 if real_ly_traffic else 0
+
         c1_m, bg1_m, arr1_m = get_trend_ui(mom_sales_pct)
         c1_y, bg1_y, arr1_y = get_trend_ui(yoy_sales_pct)
+        c2_m, bg2_m, arr2_m = get_trend_ui(mom_traf_pct)
+        c2_y, bg2_y, arr2_y = get_trend_ui(yoy_traf_pct)
 
         st.markdown(f"""
         <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
@@ -336,24 +354,17 @@ try:
             </div>
             <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
                 <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Month <span class="compare-date-str">{lm_str}</span></p>
-                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">$ {mock_lm_sales:,.2f}</h2>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">$ {real_lm_sales:,.2f}</h2>
                 <span style="color: {c1_m}; font-weight: 600; background: {bg1_m}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr1_m} {abs(mom_sales_pct):.1f}% MoM</span>
             </div>
             <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
                 <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Year <span class="compare-date-str">{ly_str}</span></p>
-                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">$ {mock_ly_sales:,.2f}</h2>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">$ {real_ly_sales:,.2f}</h2>
                 <span style="color: {c1_y}; font-weight: 600; background: {bg1_y}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr1_y} {abs(yoy_sales_pct):.1f}% YoY</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
         
-        mock_lm_traffic = mtd_traffic * 0.95 if mtd_traffic > 0 else 0
-        mock_ly_traffic = mtd_traffic * 1.35 if mtd_traffic > 0 else 0
-        mom_traf_pct = ((mtd_traffic - mock_lm_traffic) / mock_lm_traffic) * 100 if mock_lm_traffic else 0
-        yoy_traf_pct = ((mtd_traffic - mock_ly_traffic) / mock_ly_traffic) * 100 if mock_ly_traffic else 0
-        c2_m, bg2_m, arr2_m = get_trend_ui(mom_traf_pct)
-        c2_y, bg2_y, arr2_y = get_trend_ui(yoy_traf_pct)
-
         st.markdown(f"""
         <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
             <div style="flex: 1;">
@@ -362,12 +373,12 @@ try:
             </div>
             <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
                 <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Month <span class="compare-date-str">{lm_str}</span></p>
-                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">{mock_lm_traffic:,.0f}</h2>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">{real_lm_traffic:,.0f}</h2>
                 <span style="color: {c2_m}; font-weight: 600; background: {bg2_m}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr2_m} {abs(mom_traf_pct):.1f}% MoM</span>
             </div>
             <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
                 <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Year <span class="compare-date-str">{ly_str}</span></p>
-                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">{mock_ly_traffic:,.0f}</h2>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">{real_ly_traffic:,.0f}</h2>
                 <span style="color: {c2_y}; font-weight: 600; background: {bg2_y}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr2_y} {abs(yoy_traf_pct):.1f}% YoY</span>
             </div>
         </div>
@@ -387,7 +398,6 @@ try:
             st.markdown('<div class="flex-center" style="margin-bottom:6px;"><div class="icon-square bg-blue"><i class="fa-regular fa-calendar"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Interval Analysis</h3></div>', unsafe_allow_html=True)
             st.caption("Modules below are strictly bounded by your date selection.")
         
-        # ⚠️ 核心修复：移除日历的限制，让你随意选到 2026 甚至 2030 年！
         with header_col2:
             primary_dates = st.date_input("🗓️ Primary Date Range", [min_date, max_date])
         with header_col3:
@@ -535,7 +545,6 @@ try:
         default_w1_end = default_w2_start - timedelta(days=1)
         default_w1_start = default_w1_end - timedelta(days=6)
         
-        # 同样移除了对比日历的日期限制
         with col_w1:
             wk_range1 = st.date_input("📅 Compare Date Range 1 (Previous)", [default_w1_start, default_w1_end])
         with col_w2:
