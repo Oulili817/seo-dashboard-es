@@ -106,7 +106,6 @@ if not st.session_state["authenticated"]:
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-
 from plotly.subplots import make_subplots
 
 def hex_to_rgba(hex_color, alpha=0.1):
@@ -118,7 +117,6 @@ def hex_to_rgba(hex_color, alpha=0.1):
 # 1. 核心数据统一抓取区
 # ==========================================
 sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4KTuYQtC6xsRIwgWLDK9aJUhqmKDmUg4XmMxbsKadyj4QSRM9GNvDjyYz7z8vzKj8nohA7a8ukiLz/pub?gid=0&single=true&output=csv"
-# ⚠️ 记得确保这里的链接是你真实的 GSC 表格发布的链接
 GSC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzi-PSTqsbOE_3GmT9xOU-2UNiXhlUYeW118jPq4pFBY3arsMbVtIr1BAMbv5qYL3BFmKqzcb5vBAO/pub?gid=0&single=true&output=csv"
 
 @st.cache_data(ttl=600)
@@ -209,7 +207,7 @@ try:
                 st.rerun()
 
         # ==========================================
-        # 3. 口径 A：大盘固定指标 (修复了 MTD 读取历史数据的逻辑)
+        # 3. 口径 A：大盘固定指标 
         # ==========================================
         date_mapping = {}
         for col in df_es.columns:
@@ -222,7 +220,6 @@ try:
         mtd_cols = [col for col, dt in date_mapping.items() if dt.year == current_year and dt.month == current_month and dt <= today]
         curr_str = f"({current_month:02d}/01 - {current_month:02d}/{today.day:02d})"
         
-        # 真实计算 Last Month 对应日期的列
         lm_year = current_year if current_month > 1 else current_year - 1
         lm_month = current_month - 1 if current_month > 1 else 12
         lm_day = min(today.day, calendar.monthrange(lm_year, lm_month)[1])
@@ -231,7 +228,6 @@ try:
         lm_end = date(lm_year, lm_month, lm_day)
         lm_cols = [col for col, dt in date_mapping.items() if lm_start <= dt <= lm_end]
         
-        # 真实计算 Last Year 对应日期的列
         ly_year = current_year - 1
         ly_day = min(today.day, calendar.monthrange(ly_year, current_month)[1])
         ly_str = f"({ly_year}/{current_month:02d}/01 - {current_month:02d}/{ly_day:02d})"
@@ -258,17 +254,15 @@ try:
                     return pd.to_numeric(val, errors='coerce')
             return 0
 
-        # 当前月数据
         mtd_sales = get_sum('Superset SEO销售额', mtd_cols, True)
         mtd_traffic = get_sum('SEO流量', mtd_cols)
 
-        # ================== 核心修复：真实读取历史区间数据 ==================
         real_lm_sales = get_sum('Superset SEO销售额', lm_cols, True)
         real_ly_sales = get_sum('Superset SEO销售额', ly_cols, True)
         real_lm_traffic = get_sum('SEO流量', lm_cols)
         real_ly_traffic = get_sum('SEO流量', ly_cols)
 
-        # 3.1 目标达成 (URL 参数永久保存配置，方便加入书签)
+        # 3.1 目标达成 (URL 参数永久保存配置)
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
 
         saved_sales = float(st.query_params.get("sales", 3000.0))
@@ -334,7 +328,6 @@ try:
         st.markdown('<div class="flex-center" style="margin:30px 0 20px 0;"><div class="icon-square bg-purple"><i class="fa-solid fa-chart-simple"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">MTD Monitoring</h3></div>', unsafe_allow_html=True)
         def get_trend_ui(pct): return ("#FF6475" if pct < 0 else "#22C55E", "#FFF0F2" if pct < 0 else "#F0FDF4", "↓" if pct < 0 else "↑")
 
-        # 使用真实抓取的数据计算同环比
         mom_sales_pct = ((mtd_sales - real_lm_sales) / real_lm_sales) * 100 if real_lm_sales else 0
         yoy_sales_pct = ((mtd_sales - real_ly_sales) / real_ly_sales) * 100 if real_ly_sales else 0
         mom_traf_pct = ((mtd_traffic - real_lm_traffic) / real_lm_traffic) * 100 if real_lm_traffic else 0
@@ -573,8 +566,10 @@ try:
                             return df[col].sum()
                 return 0
                 
+            # 💡 核心更新：加入 "销售额 (GA4)" 行
             metrics_list = [
                 ("销售额 (Superset)", "currency", "es", "Superset SEO销售额"),
+                ("销售额 (GA4)", "currency", "es", "GA4 SEO销售额"),
                 ("流量 (GA4)", "number", "es", "SEO流量"),
                 ("流量 (Blog)", "number", "es", "SEO Blog 流量"),
                 ("流量 (站内)", "number", "es", "SEO 站内流量"),
@@ -654,12 +649,27 @@ try:
 
 
         # ==========================================
-        # 7. GSC 图表 
+        # 7. GSC 图表 (带自定义固定排序下拉框)
         # ==========================================
         if not df_gsc.empty:
             st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-orange"><i class="fa-brands fa-google"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">GSC Performance Tracking</h3></div>', unsafe_allow_html=True)
             
-            gsc_categories = sorted(list(set([c.split(' - ')[0] for c in df_gsc.columns if ' - ' in c])))
+            # 💡 核心更新：自定义下拉框排序
+            raw_cats = list(set([c.split(' - ')[0] for c in df_gsc.columns if ' - ' in c]))
+            custom_order = [
+                "点击(gsc)", 
+                "点击(非品牌词点击)", 
+                "点击(blog)", 
+                "点击(非blog)", 
+                "点击(非品牌词非blog)", 
+                "点击(非品牌词非blog非utm)"
+            ]
+            
+            def cat_sort_key(x):
+                nx = norm_cat(x)
+                return custom_order.index(nx) if nx in custom_order else 999
+            
+            gsc_categories = sorted(raw_cats, key=cat_sort_key)
             
             ctrl_col1, ctrl_col2 = st.columns([2, 1])
             with ctrl_col1:
