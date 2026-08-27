@@ -764,7 +764,7 @@ try:
         st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
 
 
-        # ==========================================
+      # ==========================================
         # 7. GSC 图表 (带自定义固定排序下拉框)
         # ==========================================
         if not df_gsc.empty:
@@ -790,7 +790,10 @@ try:
             with ctrl_col1:
                 selected_gsc_cat = st.selectbox("🎯 Select Tracking Category for Deep Dive", gsc_categories)
             with ctrl_col2:
-                gsc_date_range = st.date_input("🗓️ Filter Chart Date Range", [])
+                # 💡 核心更新：默认显示当月 1 号到今天
+                gsc_mtd_start = date(current_year, current_month, 1)
+                gsc_mtd_end = today
+                gsc_date_range = st.date_input("🗓️ Filter Chart Date Range", [gsc_mtd_start, gsc_mtd_end])
             
             plot_gsc_df = df_gsc.copy()
             if len(gsc_date_range) == 2:
@@ -831,7 +834,6 @@ try:
             fig_qual.update_yaxes(showgrid=False, secondary_y=True, autorange="reversed", title_text="Rank Position (Lower is better)", title_font=dict(size=11, color="#8E8CA7"))
             st.plotly_chart(fig_qual, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
-
         # ==========================================
         # 8. 底层数据明细 
         # ==========================================
