@@ -9,7 +9,7 @@ import os
 # ==========================================
 # 0. 页面基础设置与 顶级 SaaS 视觉风格注入
 # ==========================================
-st.set_page_config(page_title="ES 业务全局看板", page_icon="✨", layout="wide")
+st.set_page_config(page_title="ES 业务全局看板", page_icon="🥘", layout="wide")
 
 st.markdown("""
 <style>
@@ -98,7 +98,7 @@ if not st.session_state["authenticated"]:
         pwd = st.text_input("Passkey", type="password", label_visibility="collapsed", placeholder="Enter Passkey...")
         
         if st.button("Unlock Dashboard", use_container_width=True):
-            if pwd == "escalate":
+            if pwd == "callie":
                 st.session_state["authenticated"] = True
                 st.rerun() 
             else:
