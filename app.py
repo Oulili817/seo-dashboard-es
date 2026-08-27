@@ -714,8 +714,7 @@ try:
             
             table_container = st.empty()
             
-            with st.expander("⚙️ 发现异常想调整？点此展开底层数据进行手动微调 (Edit Raw Values)"):
-                st.info("💡 提示：在此处修改 W1 或 W2 的数值，上方的精美表格会立即以您的新数据为准进行渲染，包括红绿变化与排版！")
+            with st.expander("⚙️ Edit Raw Values"):
                 edited_df = st.data_editor(
                     df_compare_base[["日期", "W1", "W2"]],
                     column_config={
