@@ -767,6 +767,7 @@ try:
         if not df_gsc.empty:
             st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-orange"><i class="fa-brands fa-google"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">GSC Performance Tracking</h3></div>', unsafe_allow_html=True)
             
+            # 💡 核心更新：自定义下拉框排序
             raw_cats = list(set([c.split(' - ')[0] for c in df_gsc.columns if ' - ' in c]))
             custom_order = [
                 "点击(gsc)", 
@@ -792,6 +793,8 @@ try:
             plot_gsc_df = df_gsc.copy()
             if len(gsc_date_range) == 2:
                 plot_gsc_df = plot_gsc_df[(plot_gsc_df['Date'] >= gsc_date_range[0]) & (plot_gsc_df['Date'] <= gsc_date_range[1])]
+            
+            font_style = dict(family="Poppins, sans-serif", color="#8E8CA7")
             
             st.markdown(f'<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px;"><div class="icon-small bg-blue flex-center" style="justify-content:center;"><i class="fa-solid fa-eye"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">Volume: Impressions vs Clicks ({selected_gsc_cat})</span></div>', unsafe_allow_html=True)
             
