@@ -98,7 +98,7 @@ if not st.session_state["authenticated"]:
         pwd = st.text_input("Passkey", type="password", label_visibility="collapsed", placeholder="Enter Passkey...")
         
         if st.button("Unlock Dashboard", use_container_width=True):
-            if pwd == "callie":
+            if pwd == "escalate":
                 st.session_state["authenticated"] = True
                 st.rerun() 
             else:
@@ -117,7 +117,8 @@ def hex_to_rgba(hex_color, alpha=0.1):
 # 1. 核心数据统一抓取区
 # ==========================================
 sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4KTuYQtC6xsRIwgWLDK9aJUhqmKDmUg4XmMxbsKadyj4QSRM9GNvDjyYz7z8vzKj8nohA7a8ukiLz/pub?gid=0&single=true&output=csv"
-GSC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzi-PSTqsbOE_3GmT9xOU-2UNiXhlUYeW118jPq4pFBY3arsMbVtIr1BAMbv5qYL3BFmKqzcb5vBAO/pub?gid=0&single=true&output=csv"
+# ⚠️ 记得确保这里的链接是你真实的 GSC 表格发布的 CSV 链接
+GSC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5u1T1o3c4J1a6n0/pub?output=csv"
 
 @st.cache_data(ttl=600)
 def load_and_clean_data(url):
@@ -264,6 +265,7 @@ try:
 
         # 3.1 目标达成 (URL 参数永久保存配置)
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
+        st.caption("💡 设定目标后，数值会自动存入网页链接中。**请将设定好目标的网页加入收藏夹（书签）**，下次直接打开就不会丢失啦！")
 
         saved_sales = float(st.query_params.get("sales", 3000.0))
         saved_traffic = int(st.query_params.get("traffic", 6100))
@@ -522,6 +524,118 @@ try:
             </div>
             """, unsafe_allow_html=True)
 
+        # ==========================================
+        # 5.3 🚀 新增：Interval 维度的专属趋势图 (流量 + 销售)
+        # ==========================================
+        def get_trend_series(metric, cols, is_curr=False):
+            target = metric.replace(' ', '').lower()
+            data = df_es[df_es['Metric_Norm'] == target]
+            if not data.empty and cols:
+                vals = data[cols].iloc[0].astype(str).str.replace(',', '', regex=False)
+                if is_curr: vals = vals.str.replace('$', '', regex=False)
+                return pd.to_numeric(vals, errors='coerce').fillna(0).tolist()
+            return []
+
+        dates1 = [date_mapping[d].strftime('%Y-%m-%d') for d in filtered_cols_1]
+        dates2 = [date_mapping[d].strftime('%Y-%m-%d') for d in filtered_cols_2] if filtered_cols_2 else []
+        font_style = dict(family="Poppins, sans-serif", color="#8E8CA7")
+
+        # --- 趋势图 1：流量趋势图 (Traffic Breakdown) ---
+        traffic_metrics_options = ['SEO流量', 'SEO Blog 流量', 'SEO 站内流量', '网站总流量']
+        traffic_colors = {
+            'SEO流量': '#2D235C',
+            'SEO Blog 流量': '#42D2E6',
+            'SEO 站内流量': '#FF6475',
+            '网站总流量': '#FFB000'
+        }
+
+        st.markdown('<div class="soft-card" style="padding-bottom:10px; margin-top:24px;"><div class="flex-center" style="margin-bottom:20px; justify-content:space-between;"><div class="flex-center"><div class="icon-small bg-blue flex-center" style="justify-content:center;"><i class="fa-solid fa-chart-line"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">Traffic Breakdown (Selected Interval)</span></div></div>', unsafe_allow_html=True)
+        selected_traffic_metrics = st.multiselect("Select Traffic Metrics", traffic_metrics_options, default=['SEO流量', 'SEO Blog 流量', 'SEO 站内流量'], label_visibility="collapsed", key="interval_traffic_sel")
+
+        fig_traffic = go.Figure()
+        if not selected_traffic_metrics:
+            fig_traffic.update_layout(annotations=[dict(text="Select at least one metric to display", xref="paper", yref="paper", showarrow=False, font=dict(size=14, color="#8E8CA7"))])
+        else:
+            for metric in selected_traffic_metrics:
+                color = traffic_colors.get(metric, '#2D235C')
+                t_trend1 = get_trend_series(metric, filtered_cols_1)
+                t_trend2 = get_trend_series(metric, filtered_cols_2) if filtered_cols_2 else []
+
+                if not t_trend2:
+                    fig_traffic.add_trace(go.Scatter(
+                        x=dates1, y=t_trend1, mode='lines+markers', name=metric,
+                        line=dict(color=color, width=3, shape='spline'),
+                        marker=dict(size=6), fill='tozeroy', fillcolor=hex_to_rgba(color, 0.06),
+                        hovertemplate=f'{metric}<br>Date: %{{x}}<br>Traffic: %{{y:,}}<extra></extra>'
+                    ))
+                else:
+                    max_len = max(len(t_trend1), len(t_trend2))
+                    x_axis = [f"Day {i+1}" for i in range(max_len)]
+                    fig_traffic.add_trace(go.Scatter(
+                        x=x_axis[:len(t_trend1)], y=t_trend1, mode='lines+markers', name=f'{metric} (Pri)',
+                        customdata=dates1, hovertemplate=f'{metric} - Pri (%{{customdata}})<br>Traffic: %{{y:,}}<extra></extra>',
+                        fill='tozeroy', fillcolor=hex_to_rgba(color, 0.06),
+                        line=dict(color=color, width=3, shape='spline'), marker=dict(size=6)
+                    ))
+                    fig_traffic.add_trace(go.Scatter(
+                        x=x_axis[:len(t_trend2)], y=t_trend2, mode='lines', name=f'{metric} (Cmp)',
+                        customdata=dates2, hovertemplate=f'{metric} - Cmp (%{{customdata}})<br>Traffic: %{{y:,}}<extra></extra>',
+                        line=dict(color=color, width=2.5, dash='dash', shape='spline')
+                    ))
+
+            fig_traffic.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
+
+        fig_traffic.update_layout(font=font_style, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=10, b=0), height=350, xaxis=dict(showgrid=True, gridcolor='#F0F1F6'), yaxis=dict(showgrid=True, gridcolor='#F0F1F6'))
+        st.plotly_chart(fig_traffic, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # --- 趋势图 2：销售趋势图 (Sales Breakdown) ---
+        sales_metrics_options = ['Superset SEO销售额', 'GA4 SEO销售额']
+        sales_colors = {
+            'Superset SEO销售额': '#FF6475',
+            'GA4 SEO销售额': '#FFB000'
+        }
+
+        st.markdown('<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px; justify-content:space-between;"><div class="flex-center"><div class="icon-small bg-red flex-center" style="justify-content:center;"><i class="fa-solid fa-chart-area"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">Sales Trend Breakdown (Selected Interval)</span></div></div>', unsafe_allow_html=True)
+        selected_sales_metrics = st.multiselect("Select Sales Metrics", sales_metrics_options, default=['Superset SEO销售额', 'GA4 SEO销售额'], label_visibility="collapsed", key="interval_sales_sel")
+
+        fig_sales = go.Figure()
+        if not selected_sales_metrics:
+            fig_sales.update_layout(annotations=[dict(text="Select at least one metric to display", xref="paper", yref="paper", showarrow=False, font=dict(size=14, color="#8E8CA7"))])
+        else:
+            for metric in selected_sales_metrics:
+                color = sales_colors.get(metric, '#FF6475')
+                s_trend1 = get_trend_series(metric, filtered_cols_1, True)
+                s_trend2 = get_trend_series(metric, filtered_cols_2, True) if filtered_cols_2 else []
+
+                if not s_trend2:
+                    fig_sales.add_trace(go.Scatter(
+                        x=dates1, y=s_trend1, mode='lines+markers', name=metric,
+                        line=dict(color=color, width=3, shape='spline'),
+                        marker=dict(size=6), fill='tozeroy', fillcolor=hex_to_rgba(color, 0.08),
+                        hovertemplate=f'{metric}<br>Date: %{{x}}<br>Sales: $%{{y:,.2f}}<extra></extra>'
+                    ))
+                else:
+                    max_len = max(len(s_trend1), len(s_trend2))
+                    x_axis = [f"Day {i+1}" for i in range(max_len)]
+                    fig_sales.add_trace(go.Scatter(
+                        x=x_axis[:len(s_trend1)], y=s_trend1, mode='lines+markers', name=f'{metric} (Pri)',
+                        customdata=dates1, hovertemplate=f'{metric} - Pri (%{{customdata}})<br>Sales: $%{{y:,.2f}}<extra></extra>',
+                        fill='tozeroy', fillcolor=hex_to_rgba(color, 0.08),
+                        line=dict(color=color, width=3, shape='spline'), marker=dict(size=6)
+                    ))
+                    fig_sales.add_trace(go.Scatter(
+                        x=x_axis[:len(s_trend2)], y=s_trend2, mode='lines', name=f'{metric} (Cmp)',
+                        customdata=dates2, hovertemplate=f'{metric} - Cmp (%{{customdata}})<br>Sales: $%{{y:,.2f}}<extra></extra>',
+                        line=dict(color=color, width=2.5, dash='dash', shape='spline')
+                    ))
+
+            fig_sales.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=font_style))
+
+        fig_sales.update_layout(font=font_style, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=10, b=0), height=350, xaxis=dict(showgrid=True, gridcolor='#F0F1F6'), yaxis=dict(showgrid=True, gridcolor='#F0F1F6', tickprefix="$"))
+        st.plotly_chart(fig_sales, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
         st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
 
         # ==========================================
@@ -566,7 +680,6 @@ try:
                             return df[col].sum()
                 return 0
                 
-            # 💡 核心更新：加入 "销售额 (GA4)" 行
             metrics_list = [
                 ("销售额 (Superset)", "currency", "es", "Superset SEO销售额"),
                 ("销售额 (GA4)", "currency", "es", "GA4 SEO销售额"),
@@ -598,8 +711,8 @@ try:
             
             table_container = st.empty()
             
-            with st.expander("⚙️ Edit Raw Values"):
-                st.info("💡 在此处修改 W1 或 W2 的数值")
+            with st.expander("⚙️ 发现异常想调整？点此展开底层数据进行手动微调 (Edit Raw Values)"):
+                st.info("💡 提示：在此处修改 W1 或 W2 的数值，上方的精美表格会立即以您的新数据为准进行渲染，包括红绿变化与排版！")
                 edited_df = st.data_editor(
                     df_compare_base[["日期", "W1", "W2"]],
                     column_config={
@@ -654,7 +767,6 @@ try:
         if not df_gsc.empty:
             st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-orange"><i class="fa-brands fa-google"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">GSC Performance Tracking</h3></div>', unsafe_allow_html=True)
             
-            # 💡 核心更新：自定义下拉框排序
             raw_cats = list(set([c.split(' - ')[0] for c in df_gsc.columns if ' - ' in c]))
             custom_order = [
                 "点击(gsc)", 
@@ -680,8 +792,6 @@ try:
             plot_gsc_df = df_gsc.copy()
             if len(gsc_date_range) == 2:
                 plot_gsc_df = plot_gsc_df[(plot_gsc_df['Date'] >= gsc_date_range[0]) & (plot_gsc_df['Date'] <= gsc_date_range[1])]
-            
-            font_style = dict(family="Poppins, sans-serif", color="#8E8CA7")
             
             st.markdown(f'<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px;"><div class="icon-small bg-blue flex-center" style="justify-content:center;"><i class="fa-solid fa-eye"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">Volume: Impressions vs Clicks ({selected_gsc_cat})</span></div>', unsafe_allow_html=True)
             
@@ -720,7 +830,7 @@ try:
         # ==========================================
         # 8. 底层数据明细 
         # ==========================================
-        st.markdown('<div class="flex-center" style="margin:30px 0 20px 0;"><div class="icon-square bg-gray"><i class="fa-solid fa-table"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Raw Data Matrix</h3></div>', unsafe_allow_html=True)
+        st.markdown('<div class="flex-center" style="margin-30px 0 20px 0;"><div class="icon-square bg-gray"><i class="fa-solid fa-table"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Raw Data Matrix</h3></div>', unsafe_allow_html=True)
         
         tab_raw1, tab_raw2 = st.tabs(["📊 Primary Dashboard Matrix", "📈 GSC Matrix"])
         
