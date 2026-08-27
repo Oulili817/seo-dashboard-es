@@ -391,8 +391,12 @@ try:
             st.markdown('<div class="flex-center" style="margin-bottom:6px;"><div class="icon-square bg-blue"><i class="fa-regular fa-calendar"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Interval Analysis</h3></div>', unsafe_allow_html=True)
             st.caption("Modules below are strictly bounded by your date selection.")
         
+    # 💡 新增：计算当月的第一天和今天，作为默认值
+        mtd_default_start = date(current_year, current_month, 1)
+        mtd_default_end = today
+
         with header_col2:
-            primary_dates = st.date_input("🗓️ Primary Date Range", [min_date, max_date])
+            primary_dates = st.date_input("🗓️ Primary Date Range", [mtd_default_start, mtd_default_end])
         with header_col3:
             enable_compare = st.checkbox("🔄 Enable Trend Comparison")
             if enable_compare: compare_dates = st.date_input("🗓️ Compare Date Range", [min_date, max_date])
@@ -523,8 +527,8 @@ try:
             </div>
             """, unsafe_allow_html=True)
 
-        # ==========================================
-        # 5.3 🚀 新增：Interval 维度的专属趋势图 (流量 + 销售)
+# ==========================================
+        # 5.3 Interval 维度的专属趋势图 (流量 + 销售)
         # ==========================================
         def get_trend_series(metric, cols, is_curr=False):
             target = metric.replace(' ', '').lower()
@@ -710,8 +714,8 @@ try:
             
             table_container = st.empty()
             
-            with st.expander("⚙️ Edit Raw Values"):
-                st.info("💡 在此处修改 W1 或 W2 的数值")
+            with st.expander("⚙️ 发现异常想调整？点此展开底层数据进行手动微调 (Edit Raw Values)"):
+                st.info("💡 提示：在此处修改 W1 或 W2 的数值，上方的精美表格会立即以您的新数据为准进行渲染，包括红绿变化与排版！")
                 edited_df = st.data_editor(
                     df_compare_base[["日期", "W1", "W2"]],
                     column_config={
@@ -766,7 +770,6 @@ try:
         if not df_gsc.empty:
             st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-orange"><i class="fa-brands fa-google"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">GSC Performance Tracking</h3></div>', unsafe_allow_html=True)
             
-            # 💡 核心更新：自定义下拉框排序
             raw_cats = list(set([c.split(' - ')[0] for c in df_gsc.columns if ' - ' in c]))
             custom_order = [
                 "点击(gsc)", 
@@ -832,7 +835,7 @@ try:
         # ==========================================
         # 8. 底层数据明细 
         # ==========================================
-        st.markdown('<div class="flex-center" style="margin-30px 0 20px 0;"><div class="icon-square bg-gray"><i class="fa-solid fa-table"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Raw Data Matrix</h3></div>', unsafe_allow_html=True)
+        st.markdown('<div class="flex-center" style="margin:30px 0 20px 0;"><div class="icon-square bg-gray"><i class="fa-solid fa-table"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Raw Data Matrix</h3></div>', unsafe_allow_html=True)
         
         tab_raw1, tab_raw2 = st.tabs(["📊 Primary Dashboard Matrix", "📈 GSC Matrix"])
         
