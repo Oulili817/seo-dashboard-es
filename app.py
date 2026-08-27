@@ -118,7 +118,7 @@ def hex_to_rgba(hex_color, alpha=0.1):
 # ==========================================
 sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4KTuYQtC6xsRIwgWLDK9aJUhqmKDmUg4XmMxbsKadyj4QSRM9GNvDjyYz7z8vzKj8nohA7a8ukiLz/pub?gid=0&single=true&output=csv"
 # ⚠️ 记得确保这里的链接是你真实的 GSC 表格发布的 CSV 链接
-GSC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5u1T1o3c4J1a6n0/pub?output=csv"
+GSC_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzi-PSTqsbOE_3GmT9xOU-2UNiXhlUYeW118jPq4pFBY3arsMbVtIr1BAMbv5qYL3BFmKqzcb5vBAO/pub?gid=0&single=true&output=csv"
 
 @st.cache_data(ttl=600)
 def load_and_clean_data(url):
@@ -265,7 +265,6 @@ try:
 
         # 3.1 目标达成 (URL 参数永久保存配置)
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
-        st.caption("💡 设定目标后，数值会自动存入网页链接中。**请将设定好目标的网页加入收藏夹（书签）**，下次直接打开就不会丢失啦！")
 
         saved_sales = float(st.query_params.get("sales", 3000.0))
         saved_traffic = int(st.query_params.get("traffic", 6100))
@@ -711,8 +710,8 @@ try:
             
             table_container = st.empty()
             
-            with st.expander("⚙️ 发现异常想调整？点此展开底层数据进行手动微调 (Edit Raw Values)"):
-                st.info("💡 提示：在此处修改 W1 或 W2 的数值，上方的精美表格会立即以您的新数据为准进行渲染，包括红绿变化与排版！")
+            with st.expander("⚙️ Edit Raw Values"):
+                st.info("💡 在此处修改 W1 或 W2 的数值")
                 edited_df = st.data_editor(
                     df_compare_base[["日期", "W1", "W2"]],
                     column_config={
