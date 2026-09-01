@@ -677,153 +677,27 @@ try:
         # ==========================================
         # 6. Weekly Performance Comparison (含 AI Overview 3 个维度)
         # ==========================================
-        st.markdown('<div class="flex-center" style="margin-bottom:6px;"><div class="icon-square bg-green"><i class="fa-solid fa-table-columns"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Weekly Performance Comparison</h3></div>', unsafe_allow_html=True)
-        st.caption("✦ Data dynamically aggregated from both Dashboards to mirror your manual report.")
-        
-        col_w1, col_w2, _ = st.columns([1, 1, 2])
-        
-        default_w2_end = date.today()
-        default_w2_start = default_w2_end - timedelta(days=6)
-        default_w1_end = default_w2_start - timedelta(days=1)
-        default_w1_start = default_w1_end - timedelta(days=6)
-        
-        with col_w1: wk_range1 = st.date_input("📅 Compare Date Range 1 (Previous)", [default_w1_start, default_w1_end])
-        with col_w2: wk_range2 = st.date_input("📅 Compare Date Range 2 (Current)", [default_w2_start, default_w2_end])
-            
-        if len(wk_range1) == 2 and len(wk_range2) == 2:
-            r1_start, r1_end = wk_range1
-            r2_start, r2_end = wk_range2
-            
-            cols_r1 = [col for col, dt in date_mapping.items() if r1_start <= dt <= r1_end]
-            cols_r2 = [col for col, dt in date_mapping.items() if r2_start <= dt <= r2_end]
-            
-            if not df_gsc.empty:
-                df_gsc_r1 = df_gsc[(df_gsc['Date'] >= r1_start) & (df_gsc['Date'] <= r1_end)]
-                df_gsc_r2 = df_gsc[(df_gsc['Date'] >= r2_start) & (df_gsc['Date'] <= r2_end)]
-            else:
-                df_gsc_r1 = pd.DataFrame()
-                df_gsc_r2 = pd.DataFrame()
-
-            if not df_ai.empty:
-                df_ai_r1 = df_ai[(df_ai['Date'] >= r1_start) & (df_ai['Date'] <= r1_end)]
-                df_ai_r2 = df_ai[(df_ai['Date'] >= r2_start) & (df_ai['Date'] <= r2_end)]
-            else:
-                df_ai_r1 = pd.DataFrame()
-                df_ai_r2 = pd.DataFrame()
-                
-            def get_gsc_val(df, cat):
-                if df.empty: return 0
-                target_cat = norm_cat(cat)
-                for col in df.columns:
-                    if ' - ' in col:
-                        c_cat, c_sub = col.split(' - ', 1)
-                        if norm_cat(c_cat) == target_cat and c_sub.strip().lower() in ['clicks', '点击']:
-                            return df[col].sum()
-                    elif norm_cat(col) == target_cat:
-                        return df[col].sum()
-                return 0
-
-            def get_ai_val(df, cat):
-                if df.empty: return 0
-                target_cat = norm_cat(cat)
-                for col in df.columns:
-                    if ' - ' in col:
-                        c_cat, c_sub = col.split(' - ', 1)
-                        if norm_cat(c_cat) == target_cat and c_sub.strip().lower() in ['clicks', '点击', '流量', 'value', '数值']:
-                            return df[col].sum()
-                    elif norm_cat(col) == target_cat:
-                        return df[col].sum()
-                matched_cols = [col for col in df.columns if norm_cat(cat) in norm_cat(col)]
-                if matched_cols:
-                    return df[matched_cols[0]].sum()
-                return 0
-                
-            # 💡 核心更新：把 AI Performance 3 个维度加在 销售额 (AI assistant) 正下方
-            metrics_list = [
-                ("销售额 (Superset)", "currency", "es", "Superset SEO销售额"),
-                ("销售额 (GA4)", "currency", "es", "GA4 SEO销售额"),
-                ("流量 (GA4)", "number", "es", "SEO流量"),
-                ("流量 (Blog)", "number", "es", "SEO Blog 流量"),
-                ("流量 (站内)", "number", "es", "SEO 站内流量"),
-                ("流量 (AI assistant)", "number", "es", "AI Assistant 流量"),
-                ("销售额 (AI assistant)", "currency", "es", "AI Assistant 销售额"),
-                ("AI Performance（总）", "number", "ai", "AI Performance（总）"),
-                ("AI Performance（非Blog）", "number", "ai", "AI Performance（非Blog）"),
-                ("AI Performance（Blog）", "number", "ai", "AI Performance（Blog）"),
-                ("点击 (GSC)", "number", "gsc", "点击(GSC)"),
-                ("点击 (非品牌词点击)", "number", "gsc", "点击(非品牌词点击)"),
-                ("点击 (Blog)", "number", "gsc", "点击(Blog)"),
-                ("点击 (非Blog)", "number", "gsc", "点击(非Blog)"),
-                ("点击 (非品牌词非Blog)", "number", "gsc", "点击(非品牌词非Blog)"),
-                ("点击 (非品牌词非Blog非utm)", "number", "gsc", "点击(非品牌词非Blog非utm)")
-            ]
-            
-            raw_table_data = []
-            for m_name, m_type, src, m_key in metrics_list:
-                is_curr = (m_type == "currency")
-                if src == "es":
-                    v1 = get_sum(m_key, cols_r1, is_curr)
-                    v2 = get_sum(m_key, cols_r2, is_curr)
-                elif src == "ai":
-                    v1 = get_ai_val(df_ai_r1, m_key)
-                    v2 = get_ai_val(df_ai_r2, m_key)
-                else:
-                    v1 = get_gsc_val(df_gsc_r1, m_key)
-                    v2 = get_gsc_val(df_gsc_r2, m_key)
-                raw_table_data.append({"日期": m_name, "W1": v1, "W2": v2, "_type": m_type})
-            
-            df_compare_base = pd.DataFrame(raw_table_data)
-            
-            table_container = st.empty()
-            
-            with st.expander("⚙️ 发现异常想调整？点此展开底层数据进行手动微调 (Edit Raw Values)"):
-                st.info("💡 提示：在此处修改 W1 或 W2 的数值，上方的精美表格会立即以您的新数据为准进行渲染，包括红绿变化与排版！")
-                edited_df = st.data_editor(
-                    df_compare_base[["日期", "W1", "W2"]],
-                    column_config={
-                        "日期": st.column_config.TextColumn("指标名称", disabled=True),
-                        "W1": st.column_config.NumberColumn(f"{r1_start.strftime('%-m/%-d')}-{r1_end.strftime('%-m/%-d')}", format="%.2f"),
-                        "W2": st.column_config.NumberColumn(f"{r2_start.strftime('%-m/%-d')}-{r2_end.strftime('%-m/%-d')}", format="%.2f"),
-                    },
-                    hide_index=True,
-                    use_container_width=True
-                )
-                
-            table_html = f"""
-            <table class="wk-table" style="margin-bottom: 24px;">
-                <tr>
-                    <th>日期</th>
-                    <th>{r1_start.strftime('%-m/%-d')}-{r1_end.strftime('%-m/%-d')}</th>
-                    <th>{r2_start.strftime('%-m/%-d')}-{r2_end.strftime('%-m/%-d')}</th>
-                    <th>环比变化</th>
-                </tr>
-            """
-            
-            for i, row in edited_df.iterrows():
-                m_name = row["日期"]
-                v1 = row["W1"]
-                v2 = row["W2"]
-                m_type = df_compare_base.loc[i, "_type"]
-                is_curr = (m_type == "currency")
-
-                v1_str = f"${v1:,.2f}" if is_curr else f"{v1:,.0f}"
-                v2_str = f"${v2:,.2f}" if is_curr else f"{v2:,.0f}"
-
-                if v1 == 0 and v2 == 0:
-                    pct_str, color_class = ("0.00%", "")
-                elif v1 == 0:
-                    pct_str, color_class = ("+100.00%", "text-green")
-                else:
-                    pct = ((v2 - v1) / v1) * 100
-                    pct_str = f"{pct:+.2f}%"
-                    color_class = "text-green" if pct > 0 else ("text-red" if pct < 0 else "")
-                
-                table_html += f"<tr><td>{m_name}</td><td>{v1_str}</td><td class='{color_class}'>{v2_str}</td><td class='{color_class}'>{pct_str}</td></tr>"
-
-            table_html += "</table>"
-            table_container.markdown(table_html, unsafe_allow_html=True)
-
         st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
+
+        # ==========================================
+        # 🌐 统一全局时间筛选器 (控制下方所有板块)
+        # ==========================================
+        st.markdown('<div class="flex-center" style="margin-bottom:6px;"><div class="icon-square bg-blue"><i class="fa-regular fa-calendar-check"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Global Date Filter</h3></div>', unsafe_allow_html=True)
+        st.caption("✦ The date range selected here applies globally to Superset, GSC, AI Performance, and Raw Data Matrix modules below.")
+        
+        global_default_start = date(current_year, current_month, 1)
+        global_date_range = st.date_input("🗓️ Select Global Date Range", [global_default_start, today], key="global_date_picker")
+
+        # 为 df_es 生成统一的过滤列 (供 AI 日度趋势和 Raw Data 表格 1 使用)
+        if len(global_date_range) == 2:
+            g_start, g_end = global_date_range
+            global_cols_es = [col for col, dt in date_mapping.items() if g_start <= dt <= g_end]
+            global_dates_es = [date_mapping[d].strftime('%Y-%m-%d') for d in global_cols_es]
+        else:
+            global_cols_es = []
+            global_dates_es = []
+            
+        st.markdown('<br><hr style="border:1px dashed #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
 
         # ==========================================
         # 6.5 Superset Performance Tracking
@@ -836,17 +710,15 @@ try:
             super_rate_metrics = [c for c in all_super_metrics if '率' in c]
             super_vol_metrics = [c for c in all_super_metrics if '率' not in c]
 
-            col_s1, col_s2, col_s3 = st.columns([1.5, 1.5, 1])
+            col_s1, col_s2 = st.columns(2)
             with col_s1:
                 sel_super_vols = st.multiselect("📦 Select Volume Metrics (Bar / Line)", super_vol_metrics, default=["访问量", "订单数"])
             with col_s2:
                 sel_super_rates = st.multiselect("📈 Select Rate Metrics (Area / Line)", super_rate_metrics, default=["转化率", "加购率"])
-            with col_s3:
-                super_date_range = st.date_input("🗓️ Filter Superset Dates", [])
 
             plot_sup_df = df_super.copy()
-            if len(super_date_range) == 2:
-                plot_sup_df = plot_sup_df[(plot_sup_df['_Sort_Date'] >= super_date_range[0]) & (plot_sup_df['_Sort_Date'] <= super_date_range[1])]
+            if len(global_date_range) == 2:
+                plot_sup_df = plot_sup_df[(plot_sup_df['_Sort_Date'] >= global_date_range[0]) & (plot_sup_df['_Sort_Date'] <= global_date_range[1])]
 
             def get_hover_format(m_name):
                 if '额' in m_name or '美元' in m_name: return '$%{y:,.2f}'
@@ -907,32 +779,20 @@ try:
             st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-orange"><i class="fa-brands fa-google"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">GSC Performance Tracking</h3></div>', unsafe_allow_html=True)
             
             raw_cats = list(set([c.split(' - ')[0] for c in df_gsc.columns if ' - ' in c]))
-            custom_order = [
-                "点击(gsc)", 
-                "点击(非品牌词点击)", 
-                "点击(blog)", 
-                "点击(非blog)", 
-                "点击(非品牌词非blog)", 
-                "点击(非品牌词非blog非utm)"
-            ]
-            
+            custom_order = ["点击(gsc)", "点击(非品牌词点击)", "点击(blog)", "点击(非blog)", "点击(非品牌词非blog)", "点击(非品牌词非blog非utm)"]
             def cat_sort_key(x):
                 nx = norm_cat(x)
                 return custom_order.index(nx) if nx in custom_order else 999
             
             gsc_categories = sorted(raw_cats, key=cat_sort_key)
             
-            ctrl_col1, ctrl_col2 = st.columns([2, 1])
+            ctrl_col1, _ = st.columns([1, 1])
             with ctrl_col1:
                 selected_gsc_cat = st.selectbox("🎯 Select Tracking Category for Deep Dive", gsc_categories)
-            with ctrl_col2:
-                gsc_mtd_start = date(current_year, current_month, 1)
-                gsc_mtd_end = today
-                gsc_date_range = st.date_input("🗓️ Filter Chart Date Range", [gsc_mtd_start, gsc_mtd_end])
             
             plot_gsc_df = df_gsc.copy()
-            if len(gsc_date_range) == 2:
-                plot_gsc_df = plot_gsc_df[(plot_gsc_df['Date'] >= gsc_date_range[0]) & (plot_gsc_df['Date'] <= gsc_date_range[1])]
+            if len(global_date_range) == 2:
+                plot_gsc_df = plot_gsc_df[(plot_gsc_df['Date'] >= global_date_range[0]) & (plot_gsc_df['Date'] <= global_date_range[1])]
             
             font_style = dict(family="Poppins, sans-serif", color="#8E8CA7")
             
@@ -973,20 +833,20 @@ try:
             st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
 
         # ==========================================
-        # 7.5 🚀 新增：AI Performance Tracking 模块 (包含 2 个专属趋势图)
+        # 7.5 AI Performance Tracking
         # ==========================================
         st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-purple"><i class="fa-solid fa-robot"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">AI Performance Tracking</h3></div>', unsafe_allow_html=True)
         
-        # --- 图表 1：AI Assistant (日度趋势图，抓取自 df_es) ---
+        # --- 图表 1：AI Assistant (联动 global_date_range) ---
         st.markdown('<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px; justify-content:space-between;"><div class="flex-center"><div class="icon-small bg-purple flex-center" style="justify-content:center;"><i class="fa-solid fa-chart-line"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">AI Assistant Trend (Daily)</span></div></div>', unsafe_allow_html=True)
         
         fig_ai_daily = make_subplots(specs=[[{"secondary_y": True}]])
-        ai_daily_sales = get_trend_series('AI Assistant 销售额', filtered_cols_1, is_curr=True)
-        ai_daily_traffic = get_trend_series('AI Assistant 流量', filtered_cols_1)
+        ai_daily_sales = get_trend_series('AI Assistant 销售额', global_cols_es, is_curr=True)
+        ai_daily_traffic = get_trend_series('AI Assistant 流量', global_cols_es)
         
-        if dates1:
-            fig_ai_daily.add_trace(go.Bar(x=dates1, y=ai_daily_traffic, name="AI Assistant 流量", marker_color=hex_to_rgba("#2D235C", 0.4), hovertemplate='Date: %{x}<br>Traffic: %{y:,}<extra></extra>'), secondary_y=False)
-            fig_ai_daily.add_trace(go.Scatter(x=dates1, y=ai_daily_sales, mode='lines+markers', name="AI Assistant 销售额 ($)", line=dict(color="#FFB000", width=3, shape='spline'), marker=dict(size=6), hovertemplate='Date: %{x}<br>Sales: $%{y:,.2f}<extra></extra>'), secondary_y=True)
+        if global_dates_es:
+            fig_ai_daily.add_trace(go.Bar(x=global_dates_es, y=ai_daily_traffic, name="AI Assistant 流量", marker_color=hex_to_rgba("#2D235C", 0.4), hovertemplate='Date: %{x}<br>Traffic: %{y:,}<extra></extra>'), secondary_y=False)
+            fig_ai_daily.add_trace(go.Scatter(x=global_dates_es, y=ai_daily_sales, mode='lines+markers', name="AI Assistant 销售额 ($)", line=dict(color="#FFB000", width=3, shape='spline'), marker=dict(size=6), hovertemplate='Date: %{x}<br>Sales: $%{y:,.2f}<extra></extra>'), secondary_y=True)
             
         fig_ai_daily.update_layout(font=font_style, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=10, b=0), height=350, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         fig_ai_daily.update_xaxes(showgrid=True, gridcolor='#F0F1F6')
@@ -996,23 +856,20 @@ try:
         st.caption("✦ 备注：不包括 AI Overview / AI Mode")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- 图表 2：AI Mode / Overview Performance (抓取自 df_ai) ---
+        # --- 图表 2：AI Mode / Overview Performance ---
         if not df_ai.empty:
             st.markdown('<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px; justify-content:space-between;"><div class="flex-center"><div class="icon-small bg-green flex-center" style="justify-content:center;"><i class="fa-solid fa-microchip"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">AI Overview / AI Mode Performance</span></div></div>', unsafe_allow_html=True)
             
             ai_cats = [c for c in df_ai.columns if c != 'Date']
             raw_ai_cats = list(set([c.split(' - ')[0] for c in ai_cats if ' - ' in c])) if any(' - ' in c for c in ai_cats) else ai_cats
             
-            ai_ctrl_col1, ai_ctrl_col2 = st.columns([2, 1])
+            ai_ctrl_col1, _ = st.columns([1, 1])
             with ai_ctrl_col1:
                 selected_ai_cat = st.selectbox("🎯 Select AI Dimension for Deep Dive", raw_ai_cats if raw_ai_cats else ai_cats, key="ai_cat_sel")
-            with ai_ctrl_col2:
-                ai_mtd_start = date(current_year, current_month, 1)
-                ai_date_range = st.date_input("🗓️ Filter AI Date Range", [ai_mtd_start, today], key="ai_date_range_picker")
                 
             plot_ai_df = df_ai.copy()
-            if len(ai_date_range) == 2:
-                plot_ai_df = plot_ai_df[(plot_ai_df['Date'] >= ai_date_range[0]) & (plot_ai_df['Date'] <= ai_date_range[1])]
+            if len(global_date_range) == 2:
+                plot_ai_df = plot_ai_df[(plot_ai_df['Date'] >= global_date_range[0]) & (plot_ai_df['Date'] <= global_date_range[1])]
                 
             fig_ai_overview = go.Figure()
             matched_cols = [c for c in plot_ai_df.columns if norm_cat(selected_ai_cat) in norm_cat(c)] if raw_ai_cats else [selected_ai_cat]
@@ -1040,13 +897,13 @@ try:
         # 8. 底层数据明细 (Raw Data Matrix)
         # ==========================================
         st.markdown('<div class="flex-center" style="margin:30px 0 20px 0;"><div class="icon-square bg-gray"><i class="fa-solid fa-table"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Raw Data Matrix</h3></div>', unsafe_allow_html=True)
+        st.caption("✦ Table content dynamically updates based on the Global Date Filter above.")
         
         tab_raw1, tab_raw2, tab_raw3, tab_raw4 = st.tabs(["📊 Primary Dashboard Matrix", "📈 GSC Matrix", "🛒 Superset Matrix", "🤖 AI Matrix"])
         
         with tab_raw1:
-            dates1 = [date_mapping[d].strftime('%Y-%m-%d') for d in filtered_cols_1]
-            df_display = df_es[['Metric'] + filtered_cols_1].copy()
-            df_display.columns = ['Metric'] + dates1
+            df_display = df_es[['Metric'] + global_cols_es].copy()
+            df_display.columns = ['Metric'] + global_dates_es
             df_display = df_display.set_index('Metric')
             st.markdown('<div class="soft-card" style="padding: 16px;">', unsafe_allow_html=True)
             st.dataframe(df_display, use_container_width=True, height=450)
@@ -1054,20 +911,29 @@ try:
             
         with tab_raw2:
             if 'df_gsc' in locals() and not df_gsc.empty:
+                display_gsc = df_gsc.copy()
+                if len(global_date_range) == 2:
+                    display_gsc = display_gsc[(display_gsc['Date'] >= global_date_range[0]) & (display_gsc['Date'] <= global_date_range[1])]
                 st.markdown('<div class="soft-card" style="padding: 16px;">', unsafe_allow_html=True)
-                st.dataframe(df_gsc.set_index("Date"), use_container_width=True, height=450)
+                st.dataframe(display_gsc.set_index("Date"), use_container_width=True, height=450)
                 st.markdown('</div>', unsafe_allow_html=True)
                 
         with tab_raw3:
             if 'df_super' in locals() and not df_super.empty:
+                display_super = df_super.copy()
+                if len(global_date_range) == 2:
+                    display_super = display_super[(display_super['_Sort_Date'] >= global_date_range[0]) & (display_super['_Sort_Date'] <= global_date_range[1])]
                 st.markdown('<div class="soft-card" style="padding: 16px;">', unsafe_allow_html=True)
-                st.dataframe(df_super.set_index("时间").drop(columns=["_Sort_Date"], errors="ignore"), use_container_width=True, height=450)
+                st.dataframe(display_super.set_index("时间").drop(columns=["_Sort_Date"], errors="ignore"), use_container_width=True, height=450)
                 st.markdown('</div>', unsafe_allow_html=True)
 
         with tab_raw4:
             if 'df_ai' in locals() and not df_ai.empty:
+                display_ai = df_ai.copy()
+                if len(global_date_range) == 2:
+                    display_ai = display_ai[(display_ai['Date'] >= global_date_range[0]) & (display_ai['Date'] <= global_date_range[1])]
                 st.markdown('<div class="soft-card" style="padding: 16px;">', unsafe_allow_html=True)
-                st.dataframe(df_ai.set_index("Date"), use_container_width=True, height=450)
+                st.dataframe(display_ai.set_index("Date"), use_container_width=True, height=450)
                 st.markdown('</div>', unsafe_allow_html=True)
 
 except Exception as e:
