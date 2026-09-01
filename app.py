@@ -98,7 +98,7 @@ if not st.session_state["authenticated"]:
         pwd = st.text_input("Passkey", type="password", label_visibility="collapsed", placeholder="Enter Passkey...")
         
         if st.button("Unlock Dashboard", use_container_width=True):
-            if pwd == "escalate":
+            if pwd == "callie":
                 st.session_state["authenticated"] = True
                 st.rerun() 
             else:
