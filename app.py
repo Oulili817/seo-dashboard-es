@@ -1065,4 +1065,11 @@ try:
                 st.markdown('</div>', unsafe_allow_html=True)
 
         with tab_raw4:
-            if 'df_ai' in
+            if 'df_ai' in locals() and not df_ai.empty:
+                st.markdown('<div class="soft-card" style="padding: 16px;">', unsafe_allow_html=True)
+                st.dataframe(df_ai.set_index("Date"), use_container_width=True, height=450)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+except Exception as e:
+    st.error("Error occurred during rendering:")
+    st.write(e)
