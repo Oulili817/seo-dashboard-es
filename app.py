@@ -677,6 +677,152 @@ try:
         # ==========================================
         # 6. Weekly Performance Comparison (含 AI Overview 3 个维度)
         # ==========================================
+        st.markdown('<div class="flex-center" style="margin-bottom:6px;"><div class="icon-square bg-green"><i class="fa-solid fa-table-columns"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Weekly Performance Comparison</h3></div>', unsafe_allow_html=True)
+        st.caption("✦ Data dynamically aggregated from both Dashboards to mirror your manual report.")
+        
+        col_w1, col_w2, _ = st.columns([1, 1, 2])
+        
+        default_w2_end = date.today()
+        default_w2_start = default_w2_end - timedelta(days=6)
+        default_w1_end = default_w2_start - timedelta(days=1)
+        default_w1_start = default_w1_end - timedelta(days=6)
+        
+        with col_w1: wk_range1 = st.date_input("📅 Compare Date Range 1 (Previous)", [default_w1_start, default_w1_end])
+        with col_w2: wk_range2 = st.date_input("📅 Compare Date Range 2 (Current)", [default_w2_start, default_w2_end])
+            
+        if len(wk_range1) == 2 and len(wk_range2) == 2:
+            r1_start, r1_end = wk_range1
+            r2_start, r2_end = wk_range2
+            
+            cols_r1 = [col for col, dt in date_mapping.items() if r1_start <= dt <= r1_end]
+            cols_r2 = [col for col, dt in date_mapping.items() if r2_start <= dt <= r2_end]
+            
+            if not df_gsc.empty:
+                df_gsc_r1 = df_gsc[(df_gsc['Date'] >= r1_start) & (df_gsc['Date'] <= r1_end)]
+                df_gsc_r2 = df_gsc[(df_gsc['Date'] >= r2_start) & (df_gsc['Date'] <= r2_end)]
+            else:
+                df_gsc_r1 = pd.DataFrame()
+                df_gsc_r2 = pd.DataFrame()
+
+            if not df_ai.empty:
+                df_ai_r1 = df_ai[(df_ai['Date'] >= r1_start) & (df_ai['Date'] <= r1_end)]
+                df_ai_r2 = df_ai[(df_ai['Date'] >= r2_start) & (df_ai['Date'] <= r2_end)]
+            else:
+                df_ai_r1 = pd.DataFrame()
+                df_ai_r2 = pd.DataFrame()
+                
+            def get_gsc_val(df, cat):
+                if df.empty: return 0
+                target_cat = norm_cat(cat)
+                for col in df.columns:
+                    if ' - ' in col:
+                        c_cat, c_sub = col.split(' - ', 1)
+                        if norm_cat(c_cat) == target_cat and c_sub.strip().lower() in ['clicks', '点击']:
+                            return df[col].sum()
+                    elif norm_cat(col) == target_cat:
+                        return df[col].sum()
+                return 0
+
+            def get_ai_val(df, cat):
+                if df.empty: return 0
+                target_cat = norm_cat(cat)
+                for col in df.columns:
+                    if ' - ' in col:
+                        c_cat, c_sub = col.split(' - ', 1)
+                        if norm_cat(c_cat) == target_cat and c_sub.strip().lower() in ['clicks', '点击', '流量', 'value', '数值']:
+                            return df[col].sum()
+                    elif norm_cat(col) == target_cat:
+                        return df[col].sum()
+                matched_cols = [col for col in df.columns if norm_cat(cat) in norm_cat(col)]
+                if matched_cols:
+                    return df[matched_cols[0]].sum()
+                return 0
+                
+            # 💡 核心更新：把 AI Performance 3 个维度加在 销售额 (AI assistant) 正下方
+            metrics_list = [
+                ("销售额 (Superset)", "currency", "es", "Superset SEO销售额"),
+                ("销售额 (GA4)", "currency", "es", "GA4 SEO销售额"),
+                ("流量 (GA4)", "number", "es", "SEO流量"),
+                ("流量 (Blog)", "number", "es", "SEO Blog 流量"),
+                ("流量 (站内)", "number", "es", "SEO 站内流量"),
+                ("流量 (AI assistant)", "number", "es", "AI Assistant 流量"),
+                ("销售额 (AI assistant)", "currency", "es", "AI Assistant 销售额"),
+                ("AI Performance（总）", "number", "ai", "AI Performance（总）"),
+                ("AI Performance（非Blog）", "number", "ai", "AI Performance（非Blog）"),
+                ("AI Performance（Blog）", "number", "ai", "AI Performance（Blog）"),
+                ("点击 (GSC)", "number", "gsc", "点击(GSC)"),
+                ("点击 (非品牌词点击)", "number", "gsc", "点击(非品牌词点击)"),
+                ("点击 (Blog)", "number", "gsc", "点击(Blog)"),
+                ("点击 (非Blog)", "number", "gsc", "点击(非Blog)"),
+                ("点击 (非品牌词非Blog)", "number", "gsc", "点击(非品牌词非Blog)"),
+                ("点击 (非品牌词非Blog非utm)", "number", "gsc", "点击(非品牌词非Blog非utm)")
+            ]
+            
+            raw_table_data = []
+            for m_name, m_type, src, m_key in metrics_list:
+                is_curr = (m_type == "currency")
+                if src == "es":
+                    v1 = get_sum(m_key, cols_r1, is_curr)
+                    v2 = get_sum(m_key, cols_r2, is_curr)
+                elif src == "ai":
+                    v1 = get_ai_val(df_ai_r1, m_key)
+                    v2 = get_ai_val(df_ai_r2, m_key)
+                else:
+                    v1 = get_gsc_val(df_gsc_r1, m_key)
+                    v2 = get_gsc_val(df_gsc_r2, m_key)
+                raw_table_data.append({"日期": m_name, "W1": v1, "W2": v2, "_type": m_type})
+            
+            df_compare_base = pd.DataFrame(raw_table_data)
+            
+            table_container = st.empty()
+            
+            with st.expander("⚙️ 发现异常想调整？点此展开底层数据进行手动微调 (Edit Raw Values)"):
+                st.info("💡 提示：在此处修改 W1 或 W2 的数值，上方的精美表格会立即以您的新数据为准进行渲染，包括红绿变化与排版！")
+                edited_df = st.data_editor(
+                    df_compare_base[["日期", "W1", "W2"]],
+                    column_config={
+                        "日期": st.column_config.TextColumn("指标名称", disabled=True),
+                        "W1": st.column_config.NumberColumn(f"{r1_start.strftime('%-m/%-d')}-{r1_end.strftime('%-m/%-d')}", format="%.2f"),
+                        "W2": st.column_config.NumberColumn(f"{r2_start.strftime('%-m/%-d')}-{r2_end.strftime('%-m/%-d')}", format="%.2f"),
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+                
+            table_html = f"""
+            <table class="wk-table" style="margin-bottom: 24px;">
+                <tr>
+                    <th>日期</th>
+                    <th>{r1_start.strftime('%-m/%-d')}-{r1_end.strftime('%-m/%-d')}</th>
+                    <th>{r2_start.strftime('%-m/%-d')}-{r2_end.strftime('%-m/%-d')}</th>
+                    <th>环比变化</th>
+                </tr>
+            """
+            
+            for i, row in edited_df.iterrows():
+                m_name = row["日期"]
+                v1 = row["W1"]
+                v2 = row["W2"]
+                m_type = df_compare_base.loc[i, "_type"]
+                is_curr = (m_type == "currency")
+
+                v1_str = f"${v1:,.2f}" if is_curr else f"{v1:,.0f}"
+                v2_str = f"${v2:,.2f}" if is_curr else f"{v2:,.0f}"
+
+                if v1 == 0 and v2 == 0:
+                    pct_str, color_class = ("0.00%", "")
+                elif v1 == 0:
+                    pct_str, color_class = ("+100.00%", "text-green")
+                else:
+                    pct = ((v2 - v1) / v1) * 100
+                    pct_str = f"{pct:+.2f}%"
+                    color_class = "text-green" if pct > 0 else ("text-red" if pct < 0 else "")
+                
+                table_html += f"<tr><td>{m_name}</td><td>{v1_str}</td><td class='{color_class}'>{v2_str}</td><td class='{color_class}'>{pct_str}</td></tr>"
+
+            table_html += "</table>"
+            table_container.markdown(table_html, unsafe_allow_html=True)
+
         st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
 
         # ==========================================
