@@ -343,15 +343,17 @@ try:
         real_lm_traffic = get_sum('SEO流量', lm_cols)
         real_ly_traffic = get_sum('SEO流量', ly_cols)
 
-        # 抓取 GSC Clicks 和 Impressions 的 MTD 同环比数据
+        # 抓取“点击(非品牌词非Blog非utm)”的 MTD 同环比数据
         mtd_start_date = date(current_year, current_month, 1)
-        mtd_gsc_clicks = get_gsc_sum(df_gsc, '点击(GSC)', 'clicks', mtd_start_date, today)
-        real_lm_gsc_clicks = get_gsc_sum(df_gsc, '点击(GSC)', 'clicks', lm_start, lm_end)
-        real_ly_gsc_clicks = get_gsc_sum(df_gsc, '点击(GSC)', 'clicks', ly_start, ly_end)
+        target_gsc_cat = '点击(非品牌词非Blog非utm)'
         
-        mtd_gsc_imp = get_gsc_sum(df_gsc, '点击(GSC)', 'impressions', mtd_start_date, today)
-        real_lm_gsc_imp = get_gsc_sum(df_gsc, '点击(GSC)', 'impressions', lm_start, lm_end)
-        real_ly_gsc_imp = get_gsc_sum(df_gsc, '点击(GSC)', 'impressions', ly_start, ly_end)
+        mtd_gsc_clicks = get_gsc_sum(df_gsc, target_gsc_cat, 'clicks', mtd_start_date, today)
+        real_lm_gsc_clicks = get_gsc_sum(df_gsc, target_gsc_cat, 'clicks', lm_start, lm_end)
+        real_ly_gsc_clicks = get_gsc_sum(df_gsc, target_gsc_cat, 'clicks', ly_start, ly_end)
+        
+        mtd_gsc_imp = get_gsc_sum(df_gsc, target_gsc_cat, 'impressions', mtd_start_date, today)
+        real_lm_gsc_imp = get_gsc_sum(df_gsc, target_gsc_cat, 'impressions', lm_start, lm_end)
+        real_ly_gsc_imp = get_gsc_sum(df_gsc, target_gsc_cat, 'impressions', ly_start, ly_end)
 
 
         # 3.1 目标达成 (URL 参数永久保存配置)
@@ -478,11 +480,11 @@ try:
         </div>
         """, unsafe_allow_html=True)
         
-        # 🔥 新增：GSC Clicks MTD
+   # 🔥 修改：非品牌词非Blog非utm Clicks MTD
         st.markdown(f"""
         <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
             <div style="flex: 1;">
-                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">GSC Clicks MTD <span class="compare-date-str">{curr_str}</span></p>
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Clicks MTD (非品牌词非Blog非utm) <span class="compare-date-str">{curr_str}</span></p>
                 <h2 class="text-main" style="margin: 0; font-size: 32px;">{mtd_gsc_clicks:,.0f}</h2>
             </div>
             <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
@@ -498,11 +500,11 @@ try:
         </div>
         """, unsafe_allow_html=True)
         
-        # 🔥 新增：GSC Impressions MTD
+        # 🔥 修改：非品牌词非Blog非utm Impressions MTD
         st.markdown(f"""
         <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
             <div style="flex: 1;">
-                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">GSC Impressions MTD <span class="compare-date-str">{curr_str}</span></p>
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Impressions MTD (非品牌词非Blog非utm) <span class="compare-date-str">{curr_str}</span></p>
                 <h2 class="text-main" style="margin: 0; font-size: 32px;">{mtd_gsc_imp:,.0f}</h2>
             </div>
             <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
