@@ -98,7 +98,7 @@ if not st.session_state["authenticated"]:
         pwd = st.text_input("Passkey", type="password", label_visibility="collapsed", placeholder="Enter Passkey...")
         
         if st.button("Unlock Dashboard", use_container_width=True):
-            if pwd == "callie":
+            if pwd == "escalate":
                 st.session_state["authenticated"] = True
                 st.rerun() 
             else:
@@ -196,7 +196,6 @@ def load_superset_data(url):
             
     return df_super.sort_values('_Sort_Date').reset_index(drop=True)
 
-# 智能 AI Overview / AI Mode 数据解析引擎
 @st.cache_data(ttl=600)
 def load_ai_data(url):
     bust_url = f"{url}&_t={int(datetime.now().timestamp())}"
@@ -323,14 +322,36 @@ try:
                     return pd.to_numeric(val, errors='coerce')
             return 0
 
+        # 从 df_gsc 中强力抓取同环比数据的方法
+        def get_gsc_sum(df, cat_keyword, sub_keyword, start_d, end_d):
+            if df.empty: return 0
+            mask = (df['Date'] >= start_d) & (df['Date'] <= end_d)
+            temp_df = df[mask]
+            if temp_df.empty: return 0
+            target_cat = norm_cat(cat_keyword)
+            for col in temp_df.columns:
+                if ' - ' in col:
+                    c_cat, c_sub = col.split(' - ', 1)
+                    if norm_cat(c_cat) == target_cat and c_sub.strip().lower() == sub_keyword.lower():
+                        return temp_df[col].sum()
+            return 0
+
         mtd_sales = get_sum('Superset SEO销售额', mtd_cols, True)
         mtd_traffic = get_sum('SEO流量', mtd_cols)
-
         real_lm_sales = get_sum('Superset SEO销售额', lm_cols, True)
         real_ly_sales = get_sum('Superset SEO销售额', ly_cols, True)
         real_lm_traffic = get_sum('SEO流量', lm_cols)
         real_ly_traffic = get_sum('SEO流量', ly_cols)
 
+        # 抓取 GSC Clicks 和 Impressions 的 MTD 同环比数据
+        mtd_start_date = date(current_year, current_month, 1)
+        mtd_gsc_clicks = get_gsc_sum(df_gsc, '点击(GSC)', 'clicks', mtd_start_date, today)
+        real_lm_gsc_clicks = get_gsc_sum(df_gsc, '点击(GSC)', 'clicks', lm_start, lm_end)
+        real_ly_gsc_clicks = get_gsc_sum(df_gsc, '点击(GSC)', 'clicks', ly_start, ly_end)
+        
+        mtd_gsc_imp = get_gsc_sum(df_gsc, '点击(GSC)', 'impressions', mtd_start_date, today)
+        real_lm_gsc_imp = get_gsc_sum(df_gsc, '点击(GSC)', 'impressions', lm_start, lm_end)
+        real_ly_gsc_imp = get_gsc_sum(df_gsc, '点击(GSC)', 'impressions', ly_start, ly_end)
         # 3.1 目标达成 (URL 参数永久保存配置)
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
 
