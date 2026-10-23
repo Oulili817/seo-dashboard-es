@@ -98,7 +98,7 @@ if not st.session_state["authenticated"]:
         pwd = st.text_input("Passkey", type="password", label_visibility="collapsed", placeholder="Enter Passkey...")
         
         if st.button("Unlock Dashboard", use_container_width=True):
-            if pwd == "callie":
+            if pwd == "escalate":
                 st.session_state["authenticated"] = True
                 st.rerun() 
             else:
@@ -352,8 +352,11 @@ try:
         mtd_gsc_imp = get_gsc_sum(df_gsc, '点击(GSC)', 'impressions', mtd_start_date, today)
         real_lm_gsc_imp = get_gsc_sum(df_gsc, '点击(GSC)', 'impressions', lm_start, lm_end)
         real_ly_gsc_imp = get_gsc_sum(df_gsc, '点击(GSC)', 'impressions', ly_start, ly_end)
+
+
         # 3.1 目标达成 (URL 参数永久保存配置)
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
+        st.caption("💡 设定目标后，数值会自动存入网页链接中。**请将设定好目标的网页加入收藏夹（书签）**，下次直接打开就不会丢失啦！")
 
         saved_sales = float(st.query_params.get("sales", 3000.0))
         saved_traffic = int(st.query_params.get("traffic", 6100))
@@ -422,11 +425,20 @@ try:
         yoy_sales_pct = ((mtd_sales - real_ly_sales) / real_ly_sales) * 100 if real_ly_sales else 0
         mom_traf_pct = ((mtd_traffic - real_lm_traffic) / real_lm_traffic) * 100 if real_lm_traffic else 0
         yoy_traf_pct = ((mtd_traffic - real_ly_traffic) / real_ly_traffic) * 100 if real_ly_traffic else 0
+        
+        mom_gsc_clicks_pct = ((mtd_gsc_clicks - real_lm_gsc_clicks) / real_lm_gsc_clicks) * 100 if real_lm_gsc_clicks else 0
+        yoy_gsc_clicks_pct = ((mtd_gsc_clicks - real_ly_gsc_clicks) / real_ly_gsc_clicks) * 100 if real_ly_gsc_clicks else 0
+        mom_gsc_imp_pct = ((mtd_gsc_imp - real_lm_gsc_imp) / real_lm_gsc_imp) * 100 if real_lm_gsc_imp else 0
+        yoy_gsc_imp_pct = ((mtd_gsc_imp - real_ly_gsc_imp) / real_ly_gsc_imp) * 100 if real_ly_gsc_imp else 0
 
         c1_m, bg1_m, arr1_m = get_trend_ui(mom_sales_pct)
         c1_y, bg1_y, arr1_y = get_trend_ui(yoy_sales_pct)
         c2_m, bg2_m, arr2_m = get_trend_ui(mom_traf_pct)
         c2_y, bg2_y, arr2_y = get_trend_ui(yoy_traf_pct)
+        c3_m, bg3_m, arr3_m = get_trend_ui(mom_gsc_clicks_pct)
+        c3_y, bg3_y, arr3_y = get_trend_ui(yoy_gsc_clicks_pct)
+        c4_m, bg4_m, arr4_m = get_trend_ui(mom_gsc_imp_pct)
+        c4_y, bg4_y, arr4_y = get_trend_ui(yoy_gsc_imp_pct)
 
         st.markdown(f"""
         <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
@@ -465,9 +477,48 @@ try:
             </div>
         </div>
         """, unsafe_allow_html=True)
+        
+        # 🔥 新增：GSC Clicks MTD
+        st.markdown(f"""
+        <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
+            <div style="flex: 1;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">GSC Clicks MTD <span class="compare-date-str">{curr_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 32px;">{mtd_gsc_clicks:,.0f}</h2>
+            </div>
+            <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Month <span class="compare-date-str">{lm_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">{real_lm_gsc_clicks:,.0f}</h2>
+                <span style="color: {c3_m}; font-weight: 600; background: {bg3_m}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr3_m} {abs(mom_gsc_clicks_pct):.1f}% MoM</span>
+            </div>
+            <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Year <span class="compare-date-str">{ly_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">{real_ly_gsc_clicks:,.0f}</h2>
+                <span style="color: {c3_y}; font-weight: 600; background: {bg3_y}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr3_y} {abs(yoy_gsc_clicks_pct):.1f}% YoY</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 🔥 新增：GSC Impressions MTD
+        st.markdown(f"""
+        <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
+            <div style="flex: 1;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">GSC Impressions MTD <span class="compare-date-str">{curr_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 32px;">{mtd_gsc_imp:,.0f}</h2>
+            </div>
+            <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Month <span class="compare-date-str">{lm_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">{real_lm_gsc_imp:,.0f}</h2>
+                <span style="color: {c4_m}; font-weight: 600; background: {bg4_m}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr4_m} {abs(mom_gsc_imp_pct):.1f}% MoM</span>
+            </div>
+            <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Year <span class="compare-date-str">{ly_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">{real_ly_gsc_imp:,.0f}</h2>
+                <span style="color: {c4_y}; font-weight: 600; background: {bg4_y}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr4_y} {abs(yoy_gsc_imp_pct):.1f}% YoY</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
-
         # ==========================================
         # 4. & 5. 区间维度与计算
         # ==========================================
