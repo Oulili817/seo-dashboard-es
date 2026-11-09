@@ -768,10 +768,13 @@ try:
         
         col_w1, col_w2, _ = st.columns([1, 1, 2])
         
-        default_w2_end = date.today()
-        default_w2_start = default_w2_end - timedelta(days=6)
-        default_w1_end = default_w2_start - timedelta(days=1)
-        default_w1_start = default_w1_end - timedelta(days=6)
+# 💡 智能计算自然周：精准回推到最近的一个“上周日”，依次划定两个标准的周一至周日周期
+        days_since_sunday = today.weekday() + 1 
+        default_w2_end = today - timedelta(days=days_since_sunday)       # 上周日
+        default_w2_start = default_w2_end - timedelta(days=6)              # 上周一
+        
+        default_w1_end = default_w2_start - timedelta(days=1)              # 上上周日
+        default_w1_start = default_w1_end - timedelta(days=6)              # 上上周一
         
         with col_w1: wk_range1 = st.date_input("📅 Compare Date Range 1 (Previous)", [default_w1_start, default_w1_end])
         with col_w2: wk_range2 = st.date_input("📅 Compare Date Range 2 (Current)", [default_w2_start, default_w2_end])
