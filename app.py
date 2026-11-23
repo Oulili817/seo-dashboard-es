@@ -36,6 +36,8 @@ st.markdown("""
     .progress-track { background-color: #F0F1F6; border-radius: 999px; height: 18px; width: 100%; position: relative; }
     .progress-fill-red { background: linear-gradient(90deg, #FF8491 0%, #FF6475 100%); height: 100%; border-radius: 999px; transition: width 0.8s ease; box-shadow: 0 6px 16px -4px rgba(255, 100, 117, 0.6); }
     .progress-fill-blue { background: linear-gradient(90deg, #6BE1F0 0%, #42D2E6 100%); height: 100%; border-radius: 999px; transition: width 0.8s ease; box-shadow: 0 6px 16px -4px rgba(66, 210, 230, 0.6); }
+    .progress-fill-purple { background: linear-gradient(90deg, #9F7AEA 0%, #7C3AED 100%); height: 100%; border-radius: 999px; transition: width 0.8s ease; box-shadow: 0 6px 16px -4px rgba(124, 58, 237, 0.5); }
+    .progress-fill-orange { background: linear-gradient(90deg, #FFC947 0%, #FFB000 100%); height: 100%; border-radius: 999px; transition: width 0.8s ease; box-shadow: 0 6px 16px -4px rgba(255, 176, 0, 0.5); }
     .rocket-icon { position: absolute; right: -12px; top: -6px; font-size: 22px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15)); }
     
     .icon-square { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 16px; margin-right: 16px; font-size: 22px; }
@@ -125,7 +127,7 @@ AI_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzi-PSTqsbOE_3GmT
 def load_and_clean_data(url):
     bust_url = f"{url}&_t={int(datetime.now().timestamp())}"
     df_raw = pd.read_csv(bust_url, header=None)
-    df_es = df_raw.iloc[44:62].copy()
+    df_es = df_raw.iloc[44:65].copy()
     raw_columns = list(df_raw.iloc[43])
     
     clean_columns = []
@@ -274,7 +276,7 @@ try:
                 load_ai_data.clear()
                 st.rerun()
 
-# ==========================================
+        # ==========================================
         # 3. 口径 A：大盘固定指标 
         # ==========================================
         date_mapping = {}
@@ -342,6 +344,15 @@ try:
         real_lm_traffic = get_sum('SEO流量', lm_cols)
         real_ly_traffic = get_sum('SEO流量', ly_cols)
 
+        # 🔥 新增：Superset GEO销售额 与 AI Assistant 流量 的 MTD 同环比数据
+        mtd_geo_sales = get_sum('Superset GEO销售额', mtd_cols, True)
+        real_lm_geo_sales = get_sum('Superset GEO销售额', lm_cols, True)
+        real_ly_geo_sales = get_sum('Superset GEO销售额', ly_cols, True)
+
+        mtd_ai_traffic = get_sum('AI Assistant 流量', mtd_cols)
+        real_lm_ai_traffic = get_sum('AI Assistant 流量', lm_cols)
+        real_ly_ai_traffic = get_sum('AI Assistant 流量', ly_cols)
+
         # ================== GSC 专属的 T-2 延迟对比逻辑 ==================
         gsc_mtd_end = max(date(current_year, current_month, 1), today - timedelta(days=2))
         gsc_day = gsc_mtd_end.day
@@ -371,26 +382,39 @@ try:
         real_lm_gsc_imp = get_gsc_sum(df_gsc, target_gsc_cat, 'impressions', lm_start, gsc_lm_end)
         real_ly_gsc_imp = get_gsc_sum(df_gsc, target_gsc_cat, 'impressions', ly_start, gsc_ly_end)
 
-        # 3.1 目标达成 (URL 参数永久保存配置)
+        # 3.1 目标达成 (URL 参数永久保存配置，含新增 GEO 指标)
         st.markdown('<div class="flex-center" style="margin:20px 0;"><div class="icon-square bg-orange"><i class="fa-solid fa-bullseye"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Target Achievement</h3></div>', unsafe_allow_html=True)
         st.caption("💡 设定目标后，数值会自动存入网页链接中。**请将设定好目标的网页加入收藏夹（书签）**，下次直接打开就不会丢失啦！")
 
         saved_sales = float(st.query_params.get("sales", 3000.0))
         saved_traffic = int(st.query_params.get("traffic", 6100))
+        saved_geo_sales = float(st.query_params.get("geo_sales", 500.0))
+        saved_ai_traffic = int(st.query_params.get("ai_traffic", 500))
         
-        t_col1, t_col2, _ = st.columns([1, 1, 2])
+        t_col1, t_col2, t_col3, t_col4 = st.columns(4)
         with t_col1:
             target_sales = st.number_input("🎯 Target Sales ($)", min_value=0.0, value=saved_sales, step=100.0)
         with t_col2:
             target_traffic = st.number_input("⚡ Target Traffic", min_value=0, value=saved_traffic, step=100)
+        with t_col3:
+            target_geo_sales = st.number_input("✨ Target GEO Sales ($)", min_value=0.0, value=saved_geo_sales, step=50.0)
+        with t_col4:
+            target_ai_traffic = st.number_input("🤖 Target AI Traffic", min_value=0, value=saved_ai_traffic, step=50)
 
         st.query_params["sales"] = target_sales
         st.query_params["traffic"] = target_traffic
+        st.query_params["geo_sales"] = target_geo_sales
+        st.query_params["ai_traffic"] = target_ai_traffic
 
         prog_sales = min(mtd_sales / target_sales, 1.0) if target_sales > 0 else 0
         prog_traffic = min(mtd_traffic / target_traffic, 1.0) if target_traffic > 0 else 0
         gap_sales = max(0, target_sales - mtd_sales)
         gap_traffic = max(0, target_traffic - mtd_traffic)
+
+        prog_geo_sales = min(mtd_geo_sales / target_geo_sales, 1.0) if target_geo_sales > 0 else 0
+        prog_ai_traffic = min(mtd_ai_traffic / target_ai_traffic, 1.0) if target_ai_traffic > 0 else 0
+        gap_geo_sales = max(0, target_geo_sales - mtd_geo_sales)
+        gap_ai_traffic = max(0, target_ai_traffic - mtd_ai_traffic)
 
         col1, col2 = st.columns(2)
         with col1:
@@ -435,6 +459,50 @@ try:
             </div>
             """, unsafe_allow_html=True)
 
+        # 🔥 新增：GEO 目标达成双卡片
+        col3, col4 = st.columns(2)
+        with col3:
+            st.markdown(f"""
+            <div class="soft-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <div class="flex-center text-muted" style="font-size: 15px; font-weight: 500;"><i class="fa-solid fa-wand-magic-sparkles" style="color:#7C3AED; margin-right:8px;"></i> GEO Sales Progress (Superset)</div>
+                    <div style="color: #7C3AED; font-size: 14px; font-weight: 700;">Gap: $ {gap_geo_sales:,.2f}</div>
+                </div>
+                <div style="margin-bottom: 28px; display: flex; align-items: baseline;">
+                    <span class="text-main" style="font-size: 38px; font-weight: 700;">$ {mtd_geo_sales:,.2f}</span>
+                    <span class="text-muted" style="font-size: 16px; margin-left: 8px;">/ $ {target_geo_sales:,.2f}</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill-purple" style="width: {prog_geo_sales*100}%;"></div>
+                    <span class="rocket-icon">✨</span>
+                </div>
+                <div style="text-align: right; margin-top: 16px;">
+                    <span style="color: #7C3AED; font-weight: 800; font-size: 18px;">{prog_geo_sales*100:.1f}%</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col4:
+            st.markdown(f"""
+            <div class="soft-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <div class="flex-center text-muted" style="font-size: 15px; font-weight: 500;"><i class="fa-solid fa-robot" style="color:#FFB000; margin-right:8px;"></i> AI Assistant Traffic Progress</div>
+                    <div style="color: #FFB000; font-size: 14px; font-weight: 700;">Gap: {gap_ai_traffic:,.0f}</div>
+                </div>
+                <div style="margin-bottom: 28px; display: flex; align-items: baseline;">
+                    <span class="text-main" style="font-size: 38px; font-weight: 700;">{mtd_ai_traffic:,.0f}</span>
+                    <span class="text-muted" style="font-size: 16px; margin-left: 8px;">/ {target_ai_traffic:,.0f}</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill-orange" style="width: {prog_ai_traffic*100}%;"></div>
+                    <span class="rocket-icon">🤖</span>
+                </div>
+                <div style="text-align: right; margin-top: 16px;">
+                    <span style="color: #FFB000; font-weight: 800; font-size: 18px;">{prog_ai_traffic*100:.1f}%</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
         st.markdown('<div class="flex-center" style="margin:30px 0 20px 0;"><div class="icon-square bg-purple"><i class="fa-solid fa-chart-simple"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">MTD Monitoring</h3></div>', unsafe_allow_html=True)
         def get_trend_ui(pct): return ("#FF6475" if pct < 0 else "#22C55E", "#FFF0F2" if pct < 0 else "#F0FDF4", "↓" if pct < 0 else "↑")
 
@@ -448,6 +516,12 @@ try:
         mom_gsc_imp_pct = ((mtd_gsc_imp - real_lm_gsc_imp) / real_lm_gsc_imp) * 100 if real_lm_gsc_imp else 0
         yoy_gsc_imp_pct = ((mtd_gsc_imp - real_ly_gsc_imp) / real_ly_gsc_imp) * 100 if real_ly_gsc_imp else 0
 
+        # 🔥 新增：Superset GEO销售额 与 AI Assistant 流量 的同环比计算
+        mom_geo_sales_pct = ((mtd_geo_sales - real_lm_geo_sales) / real_lm_geo_sales) * 100 if real_lm_geo_sales else 0
+        yoy_geo_sales_pct = ((mtd_geo_sales - real_ly_geo_sales) / real_ly_geo_sales) * 100 if real_ly_geo_sales else 0
+        mom_ai_traf_pct = ((mtd_ai_traffic - real_lm_ai_traffic) / real_lm_ai_traffic) * 100 if real_lm_ai_traffic else 0
+        yoy_ai_traf_pct = ((mtd_ai_traffic - real_ly_ai_traffic) / real_ly_ai_traffic) * 100 if real_ly_ai_traffic else 0
+
         c1_m, bg1_m, arr1_m = get_trend_ui(mom_sales_pct)
         c1_y, bg1_y, arr1_y = get_trend_ui(yoy_sales_pct)
         c2_m, bg2_m, arr2_m = get_trend_ui(mom_traf_pct)
@@ -456,6 +530,10 @@ try:
         c3_y, bg3_y, arr3_y = get_trend_ui(yoy_gsc_clicks_pct)
         c4_m, bg4_m, arr4_m = get_trend_ui(mom_gsc_imp_pct)
         c4_y, bg4_y, arr4_y = get_trend_ui(yoy_gsc_imp_pct)
+        c5_m, bg5_m, arr5_m = get_trend_ui(mom_geo_sales_pct)
+        c5_y, bg5_y, arr5_y = get_trend_ui(yoy_geo_sales_pct)
+        c6_m, bg6_m, arr6_m = get_trend_ui(mom_ai_traf_pct)
+        c6_y, bg6_y, arr6_y = get_trend_ui(yoy_ai_traf_pct)
 
         st.markdown(f"""
         <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
@@ -534,6 +612,49 @@ try:
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+        # 🔥 新增：Superset GEO 销售额 MTD
+        st.markdown(f"""
+        <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
+            <div style="flex: 1;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Superset GEO Sales MTD <span class="compare-date-str">{curr_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 32px;">$ {mtd_geo_sales:,.2f}</h2>
+            </div>
+            <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Month <span class="compare-date-str">{lm_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">$ {real_lm_geo_sales:,.2f}</h2>
+                <span style="color: {c5_m}; font-weight: 600; background: {bg5_m}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr5_m} {abs(mom_geo_sales_pct):.1f}% MoM</span>
+            </div>
+            <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Year <span class="compare-date-str">{ly_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">$ {real_ly_geo_sales:,.2f}</h2>
+                <span style="color: {c5_y}; font-weight: 600; background: {bg5_y}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr5_y} {abs(yoy_geo_sales_pct):.1f}% YoY</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # 🔥 新增：AI Assistant 流量 MTD
+        st.markdown(f"""
+        <div class="soft-card" style="display: flex; justify-content: space-between; text-align: left; padding-bottom:30px;">
+            <div style="flex: 1;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">AI Assistant Traffic MTD <span class="compare-date-str">{curr_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 32px;">{mtd_ai_traffic:,.0f}</h2>
+            </div>
+            <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Month <span class="compare-date-str">{lm_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">{real_lm_ai_traffic:,.0f}</h2>
+                <span style="color: {c6_m}; font-weight: 600; background: {bg6_m}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr6_m} {abs(mom_ai_traf_pct):.1f}% MoM</span>
+            </div>
+            <div style="flex: 1; border-left: 2px solid #F0F1F6; padding-left: 30px;">
+                <p class="text-muted" style="font-size: 14px; margin-bottom: 8px;">Last Year <span class="compare-date-str">{ly_str}</span></p>
+                <h2 class="text-main" style="margin: 0; font-size: 26px; margin-bottom: 12px;">{real_ly_ai_traffic:,.0f}</h2>
+                <span style="color: {c6_y}; font-weight: 600; background: {bg6_y}; padding: 4px 12px; border-radius: 8px; font-size: 13px;">{arr6_y} {abs(yoy_ai_traf_pct):.1f}% YoY</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
+
         # ==========================================
         # 4. & 5. 区间维度与计算
         # ==========================================
@@ -761,20 +882,20 @@ try:
         st.markdown('<br><hr style="border:1px solid #E2E8F0; margin: 20px 0;"><br>', unsafe_allow_html=True)
 
         # ==========================================
-        # 6. Weekly Performance Comparison (含 AI Overview 3 个维度)
+        # 6. Weekly Performance Comparison (含 AI Overview 3 个维度与 Superset GEO销售额)
         # ==========================================
         st.markdown('<div class="flex-center" style="margin-bottom:6px;"><div class="icon-square bg-green"><i class="fa-solid fa-table-columns"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">Weekly Performance Comparison</h3></div>', unsafe_allow_html=True)
         st.caption("✦ Data dynamically aggregated from both Dashboards to mirror your manual report.")
         
         col_w1, col_w2, _ = st.columns([1, 1, 2])
         
-# 💡 智能计算自然周：精准回推到最近的一个“上周日”，依次划定两个标准的周一至周日周期
+        # 💡 智能计算自然周：精准回推到最近的一个“上周日”，依次划定两个标准的周一至周日周期
         days_since_sunday = today.weekday() + 1 
         default_w2_end = today - timedelta(days=days_since_sunday)       # 上周日
-        default_w2_start = default_w2_end - timedelta(days=6)              # 上周一
+        default_w2_start = default_w2_end - timedelta(days=6)            # 上周一
         
-        default_w1_end = default_w2_start - timedelta(days=1)              # 上上周日
-        default_w1_start = default_w1_end - timedelta(days=6)              # 上上周一
+        default_w1_end = default_w2_start - timedelta(days=1)            # 上上周日
+        default_w1_start = default_w1_end - timedelta(days=6)            # 上上周一
         
         with col_w1: wk_range1 = st.date_input("📅 Compare Date Range 1 (Previous)", [default_w1_start, default_w1_end])
         with col_w2: wk_range2 = st.date_input("📅 Compare Date Range 2 (Current)", [default_w2_start, default_w2_end])
@@ -827,7 +948,7 @@ try:
                     return df[matched_cols[0]].sum()
                 return 0
                 
-            # 💡 核心更新：把 AI Performance 3 个维度加在 销售额 (AI assistant) 正下方
+            # 💡 核心更新：在 销售额 (AI assistant) 正下方新增 Superset GEO销售额
             metrics_list = [
                 ("销售额 (Superset)", "currency", "es", "Superset SEO销售额"),
                 ("销售额 (GA4)", "currency", "es", "GA4 SEO销售额"),
@@ -836,6 +957,7 @@ try:
                 ("流量 (站内)", "number", "es", "SEO 站内流量"),
                 ("流量 (AI assistant)", "number", "es", "AI Assistant 流量"),
                 ("销售额 (AI assistant)", "currency", "es", "AI Assistant 销售额"),
+                ("Superset GEO销售额", "currency", "es", "Superset GEO销售额"),
                 ("AI Performance（总）", "number", "ai", "AI Performance（总）"),
                 ("AI Performance（非Blog）", "number", "ai", "AI Performance（非Blog）"),
                 ("AI Performance（Blog）", "number", "ai", "AI Performance（Blog）"),
@@ -1072,16 +1194,18 @@ try:
         # ==========================================
         st.markdown('<div class="flex-center" style="margin-bottom:20px;"><div class="icon-square bg-purple"><i class="fa-solid fa-robot"></i></div><h3 class="text-main" style="margin:0; font-size:22px;">AI Performance Tracking</h3></div>', unsafe_allow_html=True)
         
-        # --- 图表 1：AI Assistant (联动 global_date_range) ---
+        # --- 图表 1：AI Assistant (联动 global_date_range，新增 Superset GEO销售额 折线) ---
         st.markdown('<div class="soft-card" style="padding-bottom:10px;"><div class="flex-center" style="margin-bottom:20px; justify-content:space-between;"><div class="flex-center"><div class="icon-small bg-purple flex-center" style="justify-content:center;"><i class="fa-solid fa-chart-line"></i></div><span class="text-main" style="font-weight:700; font-size:16px;">AI Assistant Trend (Daily)</span></div></div>', unsafe_allow_html=True)
         
         fig_ai_daily = make_subplots(specs=[[{"secondary_y": True}]])
         ai_daily_sales = get_trend_series('AI Assistant 销售额', global_cols_es, is_curr=True)
+        ai_daily_geo_sales = get_trend_series('Superset GEO销售额', global_cols_es, is_curr=True)
         ai_daily_traffic = get_trend_series('AI Assistant 流量', global_cols_es)
         
         if global_dates_es:
             fig_ai_daily.add_trace(go.Bar(x=global_dates_es, y=ai_daily_traffic, name="AI Assistant 流量", marker_color=hex_to_rgba("#2D235C", 0.4), hovertemplate='Date: %{x}<br>Traffic: %{y:,}<extra></extra>'), secondary_y=False)
-            fig_ai_daily.add_trace(go.Scatter(x=global_dates_es, y=ai_daily_sales, mode='lines+markers', name="AI Assistant 销售额 ($)", line=dict(color="#FFB000", width=3, shape='spline'), marker=dict(size=6), hovertemplate='Date: %{x}<br>Sales: $%{y:,.2f}<extra></extra>'), secondary_y=True)
+            fig_ai_daily.add_trace(go.Scatter(x=global_dates_es, y=ai_daily_sales, mode='lines+markers', name="AI Assistant 销售额 ($)", line=dict(color="#FFB000", width=3, shape='spline'), marker=dict(size=6), hovertemplate='Date: %{x}<br>AI Sales: $%{y:,.2f}<extra></extra>'), secondary_y=True)
+            fig_ai_daily.add_trace(go.Scatter(x=global_dates_es, y=ai_daily_geo_sales, mode='lines+markers', name="Superset GEO销售额 ($)", line=dict(color="#FF6475", width=3, shape='spline'), marker=dict(size=6), hovertemplate='Date: %{x}<br>GEO Sales: $%{y:,.2f}<extra></extra>'), secondary_y=True)
             
         fig_ai_daily.update_layout(font=font_style, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=10, b=0), height=350, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         fig_ai_daily.update_xaxes(showgrid=True, gridcolor='#F0F1F6')
