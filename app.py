@@ -124,7 +124,6 @@ SUPERSET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzi-PSTqsbO
 AI_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzi-PSTqsbOE_3GmT9xOU-2UNiXhlUYeW118jPq4pFBY3arsMbVtIr1BAMbv5qYL3BFmKqzcb5vBAO/pub?gid=779297131&single=true&output=csv"
 
 @st.cache_data(ttl=600)
-@st.cache_data(ttl=600)
 def load_and_clean_data(url):
     import re
     bust_url = f"{url}&_t={int(datetime.now().timestamp())}"
@@ -146,7 +145,7 @@ def load_and_clean_data(url):
 
     header_rows = [i for i in range(len(df_raw)) if is_date_header(df_raw.iloc[i])]
 
-    # 2. 自动在表头行（或紧邻上一行）定位 ES 站点，并动态截取到下一个站点之前
+    # 2. 自动定位 Callie ES 表头行，并完整截取到下一个站点之前
     es_header_idx = None
     for idx in header_rows:
         candidates = [str(df_raw.iloc[idx, 0]).strip().lower()]
@@ -159,17 +158,11 @@ def load_and_clean_data(url):
     if es_header_idx is not None:
         next_headers = [h for h in header_rows if h > es_header_idx]
         end_idx = next_headers[0] if next_headers else len(df_raw)
-        while end_idx > es_header_idx + 1 and df_raw.iloc[end_idx - 1, 1:10].isna().all():
-            end_idx -= 1
         raw_columns = list(df_raw.iloc[es_header_idx])
         df_es = df_raw.iloc[es_header_idx + 1 : end_idx].copy()
     else:
-        # 兜底：若表格里 ES 表头没写 ES/西班牙，直接提示所有检测到的表头行号方便快速排查
-        raw_columns = list(df_raw.iloc[43])
-        df_es = df_raw.iloc[44:62].copy()
-        if header_rows:
-            info = [f"第 {h+1} 行 (A列: {df_raw.iloc[h, 0]})" for h in header_rows]
-            st.warning(f"⚠️ 未自动匹配到 ES 表头行，表格中检测到的日期表头行有：{', '.join(info)}")
+        raw_columns = list(df_raw.iloc[44])
+        df_es = df_raw.iloc[45:64].copy()
 
     clean_columns = []
     for i, col in enumerate(raw_columns):
@@ -183,7 +176,7 @@ def load_and_clean_data(url):
     df_es.columns = clean_columns
     df_es.reset_index(drop=True, inplace=True)
     df_es['Metric'] = df_es['Metric'].astype(str).str.strip()
-    df_es['Metric_Norm'] = df_es['Metric'].str.replace(' ', '', regex=False).str.lower()
+    df_es['Metric_Norm'] = df_es['Metric'].str.replace(r'\s+', '', regex=True).str.lower()
     df_es = df_es[df_es['Metric'].notna()]
     df_es = df_es[df_es['Metric'] != '']
     df_es = df_es[df_es['Metric'].str.lower() != 'nan']
